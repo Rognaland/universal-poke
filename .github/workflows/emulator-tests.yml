@@ -1,0 +1,46 @@
+name: Emulator E2E Tests
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  emulator-tests:
+    runs-on: ubuntu-latest
+    services:
+      docker:
+        # use the Docker Engine provided on the runner
+        image: docker:20.10.24
+        options: --privileged
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install repo dependencies
+        run: npm ci
+
+      - name: Build and start Docker emulators
+        run: |
+          docker-compose pull || true
+          docker-compose up --build -d
+
+      - name: Wait for emulators (Firestore + Functions)
+        run: |
+          echo "Waiting for Firestore (8080) and Functions (5001) to be available..."
+          for i in {1..60}; do
+            nc -z 127.0.0.1 8080 && nc -z 127.0.0.1 5001 && break || true
+            echo "waiting... ($i)"; sleep 2
+          done
+
+      - name: Run emulator smoke tests
+        run: |
+          node ./scripts/emulator_test.mjs
+          node ./scripts/test_host_leave.mjs
+          node ./scripts/test_idle_cleanup.mjs

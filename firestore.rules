@@ -1,0 +1,129 @@
+rules_version = '2';
+
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════════════════
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /tables/{tableId} {
+      // Reads are public to allow listing open tables
+      allow read: if true;
+
+      // Writes are restricted but allow for testing
+  allow write: if isTableCreation(request) ||
+          isTableStart(request, resource) ||
+          isPlayerCountUpdate(request, resource);
+
+      // Disallow direct client deletes
+      allow delete: if false;
+
+      // Players subcollection rules
+      match /players/{playerId} {
+        allow read: if true;
+        // Allow create with restricted, safe fields (no auth required in this prototype)
+        allow create: if request.resource.data.keys().hasOnly(['name','address','role','status','action','actionAt','betAmount','createdAt'])
+          && request.resource.data.name is string
+          && (request.resource.data.address is string || request.resource.data.address == null)
+          && (request.resource.data.role in ['player','host','bot'])
+          && (request.resource.data.status in ['seated','active','leaving','folded','all-in','out'])
+          && request.resource.data.createdAt is timestamp
+          && !('stack' in request.resource.data);
+        // Allow limited client updates for action signaling only (no structural changes)
+        allow update: if request.resource.data.diff(resource.data).changedKeys().hasOnly(['action','actionAt','betAmount','status'])
+          && request.resource.data.diff(resource.data).addedKeys().hasOnly(['action','actionAt','betAmount','status'])
+          && request.resource.data.diff(resource.data).removedKeys().hasOnly([])
+          && request.resource.data.actionAt is timestamp;
+        // Deletions handled by backend only
+        allow delete: if false;
+      }
+
+      // Game state managed exclusively by backend
+      match /game/{docId} {
+        allow read: if true;
+        allow write: if false;
+      }
+
+      // Simple chat under table waiting room
+      match /chat/{msgId} {
+        allow read: if true;
+        allow create: if request.resource.data.keys().hasOnly(['author','address','text','createdAt'])
+          && request.resource.data.author is string
+          && (request.resource.data.address is string || request.resource.data.address == null)
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 300
+          && request.resource.data.createdAt is timestamp;
+        allow update, delete: if false;
+      }
+    }
+
+    // Public leaderboard (read-only from clients; writes via backend only)
+    match /leaderboards/{userId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Weekly and Monthly leaderboards (read-only)
+    match /leaderboards_weekly/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /leaderboards_monthly/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Payouts and processed markers must be written by server-side functions only
+    match /payouts/{docId} {
+      allow read: if false; // restrict reads by default (adjust if you have admin UIs)
+      allow write: if false; // writes only from trusted server
+    }
+    match /processedPayouts/{docId} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    // Player Stats (Play vs PC leaderboard) - read-only for clients
+    match /playerStats/{playerAddress} {
+      allow read: if true;
+      allow write: if false; // Only backend can write
+    }
+  }
+}
+
+function isTableCreation(request) {
+  let data = request.resource.data;
+  return request.method == 'create'
+      && data.host is string
+      && data.maxPlayers is number && data.maxPlayers >= 2 && data.maxPlayers <= 9
+      && data.sb is number && data.sb > 0
+      && data.bb is number && data.bb > data.sb
+      && data.stack is number && data.stack > 0
+      && data.tokenAddress is string
+  && (data.unitMultiplier is string || data.unitMultiplier is number)
+  && data.minChips is number && data.minChips >= 0
+      && data.buyin is number && data.buyin >= 0
+      && (data.startAt is string || data.startAt == null)
+  && data.keys().hasAll(['host', 'maxPlayers', 'sb', 'bb', 'stack', 'tokenAddress', 'unitMultiplier', 'buyin', 'startAt', 'createdAt', 'hostId', 'status', 'players', 'minChips'])
+      && data.players == 0
+      && data.hostId is string
+      && data.status == 'waiting';
+}
+
+function isTableStart(request, resource) {
+  return request.method == 'update'
+    && (request.resource.data.status == 'active' || request.resource.data.status == 'starting')
+    && resource.data.status == 'waiting'
+    // hostId must remain unchanged on start. Allow client to omit hostId in the update
+    && (
+      (!('hostId' in request.resource.data))
+      || (request.resource.data.hostId == resource.data.hostId)
+    );
+}
+
+function isPlayerCountUpdate(request, resource) {
+    return request.method == 'update'
+        && request.resource.data.players == resource.data.players + 1
+        && resource.data.status == 'waiting';
+}

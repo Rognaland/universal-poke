@@ -1,0 +1,289 @@
+/* ========================================
+   AUTH SCREEN POLISH - Centered Minimalist
+   Clean, modern, centered login
+   ======================================== */
+
+/* Center everything */
+.auth {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 85vh;
+    padding: 2rem 1rem;
+    position: relative;
+}
+
+/* Subtle gradient background */
+.auth::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+        radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.06) 0%, transparent 50%),
+        radial-gradient(circle at 90% 80%, rgba(147, 51, 234, 0.06) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+.auth-card {
+    position: relative;
+    z-index: 1;
+    max-width: 440px;
+    width: 100%;
+    margin: 0 auto;
+}
+
+/* Hide left side completely */
+.auth-copy {
+    display: none;
+}
+
+/* Centered form card */
+.auth-form {
+    width: 100%;
+}
+
+.auth-form-inner {
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    border-radius: 20px;
+    padding: 2.5rem 2rem;
+    backdrop-filter: blur(16px);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+    transition: all 0.3s ease;
+}
+
+.auth-form-inner:hover {
+    border-color: rgba(96, 165, 250, 0.35);
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
+}
+
+/* Title at top of form */
+.auth-form-inner > .hint:first-child {
+    font-size: 0.875rem;
+    color: rgba(226, 232, 240, 0.65);
+    margin-bottom: 1.75rem;
+    text-align: center;
+    font-weight: 400;
+}
+
+/* Enhanced primary button */
+.auth-form .control-btn.primary {
+    width: 100%;
+    padding: 1.125rem 1.75rem;
+    font-size: 1.0625rem;
+    font-weight: 600;
+    background: linear-gradient(135deg, #3b82f6 0%, #6366f1 50%, #8b5cf6 100%);
+    border: none;
+    border-radius: 14px;
+    color: white;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 8px 24px rgba(59, 130, 246, 0.3);
+    position: relative;
+    overflow: hidden;
+    letter-spacing: 0.01em;
+}
+
+.auth-form .control-btn.primary::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.6s ease;
+}
+
+.auth-form .control-btn.primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 32px rgba(59, 130, 246, 0.4);
+}
+
+.auth-form .control-btn.primary:hover::before {
+    left: 100%;
+}
+
+.auth-form .control-btn.primary:active {
+    transform: translateY(0);
+    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.35);
+}
+
+/* Account picker */
+.account-picker {
+    margin-top: 1.75rem;
+    padding-top: 1.75rem;
+    border-top: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+#account-picker-hint {
+    background: rgba(59, 130, 246, 0.1);
+    border-left: 3px solid #3b82f6;
+    padding: 1rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: rgba(226, 232, 240, 0.8);
+    margin-bottom: 1.25rem;
+}
+
+/* Loading state */
+.accounts-loading {
+    text-align: center;
+    padding: 2rem 1rem;
+    color: rgba(226, 232, 240, 0.6);
+    font-size: 0.9375rem;
+}
+
+/* Account list */
+.account-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+}
+
+/* Account item styling */
+.account-list > div {
+    padding: 1rem;
+    background: rgba(15, 23, 42, 0.6);
+    border: 1.5px solid rgba(148, 163, 184, 0.25);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+}
+
+.account-list > div:hover {
+    background: rgba(59, 130, 246, 0.12);
+    border-color: rgba(96, 165, 250, 0.5);
+    transform: translateX(4px);
+}
+
+.account-list > div.selected {
+    background: rgba(59, 130, 246, 0.18);
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Continue button */
+.account-actions {
+    margin-top: 1.5rem;
+    display: flex;
+    justify-content: center;
+}
+
+#account-continue {
+    min-width: 180px;
+    padding: 0.875rem 2rem;
+    background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+    border: none;
+    border-radius: 10px;
+    color: white;
+    font-weight: 600;
+    font-size: 0.9375rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 16px rgba(34, 197, 94, 0.25);
+}
+
+#account-continue:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(34, 197, 94, 0.35);
+}
+
+#account-continue:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Profile display after connection */
+.profile-summary {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.125rem;
+    background: rgba(34, 197, 94, 0.1);
+    border: 1px solid rgba(34, 197, 94, 0.35);
+    border-radius: 12px;
+    margin-top: 1.25rem;
+}
+
+.profile-summary img {
+    border-radius: 50%;
+    border: 2px solid rgba(34, 197, 94, 0.5);
+    width: 42px;
+    height: 42px;
+}
+
+#profile-name {
+    font-weight: 600;
+    color: #f8fafc;
+    font-size: 0.9375rem;
+}
+
+#profile-address {
+    font-size: 0.8125rem;
+    color: rgba(226, 232, 240, 0.6);
+    margin-top: 0.125rem;
+}
+
+/* Error messages */
+#error-message {
+    color: #f87171;
+    background: rgba(239, 68, 68, 0.12);
+    border-left: 3px solid #ef4444;
+    padding: 0.875rem 1rem;
+    border-radius: 8px;
+    margin-top: 1rem;
+    font-size: 0.875rem;
+    line-height: 1.5;
+}
+
+#error-message:empty {
+    display: none;
+}
+
+/* Animations */
+@keyframes fadeInScale {
+    from {
+        opacity: 0;
+        transform: scale(0.96) translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.auth-form-inner {
+    animation: fadeInScale 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+    .auth-form-inner {
+        padding: 2rem 1.5rem;
+    }
+    
+    .auth {
+        padding: 1.5rem 1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .auth-form-inner {
+        padding: 1.75rem 1.25rem;
+    }
+    
+    .auth-form .control-btn.primary {
+        padding: 1rem 1.5rem;
+        font-size: 1rem;
+    }
+}

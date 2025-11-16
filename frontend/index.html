@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Universal Poker</title>
+        <link rel="stylesheet" href="/src/style.css">
+        <meta name="color-scheme" content="dark light">
+        <meta name="theme-color" content="#111">
+        <link rel="icon" href="/po.ico" type="image/x-icon" />
+        <meta name="description" content="Universal Profile poker with on-chain chips on LUKSO">
+        <meta property="og:title" content="Universal Poker" />
+        <meta property="og:description" content="Host and play poker with Universal Profile on LUKSO." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="/public/vite.svg" />
+</head>
+<body>
+    <div class="game-screen">
+        <div class="poker-module mode-menu">
+            <header class="game-header" style="display:none;">
+                <div class="header-left">
+                    <span class="brand-mark">Universal Poker</span>
+                </div>
+                <div class="header-right">
+                    <button id="btn-logout" class="control-btn secondary" style="display:none;">Logout</button>
+                </div>
+            </header>
+
+            <main class="poker-stage">
+                    <div class="table-area is-hidden" aria-label="Poker table">
+                    <div class="table">
+                        <div class="seat player-seat" id="seat-1" data-seat="1">
+                            <div class="player-pod">
+                                <span class="player-name"></span>
+                                <span class="player-stack"></span>
+                            </div>
+                            <div class="player-cards"></div>
+                            <div class="player-bet-display"></div>
+                            <div class="dealer-button-display" aria-hidden="true">D</div>
+                        </div>
+                        <div class="seat player-seat" id="seat-2" data-seat="2">
+                            <div class="player-pod">
+                                <span class="player-name"></span>
+                                <span class="player-stack"></span>
+                            </div>
+                            <div class="player-cards"></div>
+                            <div class="player-bet-display"></div>
+                            <div class="dealer-button-display" aria-hidden="true">D</div>
+                        </div>
+                        <div class="seat player-seat" id="seat-3" data-seat="3">
+                            <div class="player-pod">
+                                <span class="player-name"></span>
+                                <span class="player-stack"></span>
+                            </div>
+                            <div class="player-cards"></div>
+                            <div class="player-bet-display"></div>
+                            <div class="dealer-button-display" aria-hidden="true">D</div>
+                        </div>
+                        <div class="seat player-seat" id="seat-4" data-seat="4">
+                            <div class="player-pod">
+                                <span class="player-name"></span>
+                                <span class="player-stack"></span>
+                            </div>
+                            <div class="player-cards"></div>
+                            <div class="player-bet-display"></div>
+                            <div class="dealer-button-display" aria-hidden="true">D</div>
+                        </div>
+                        <div class="seat player-seat" id="seat-5" data-seat="5">
+                            <div class="player-pod">
+                                <span class="player-name"></span>
+                                <span class="player-stack"></span>
+                            </div>
+                            <div class="player-cards"></div>
+                            <div class="player-bet-display"></div>
+                            <div class="dealer-button-display" aria-hidden="true">D</div>
+                        </div>
+                        <div class="seat player-seat" id="seat-6" data-seat="6">
+                            <div class="player-pod">
+                                <span class="player-name"></span>
+                                <span class="player-stack"></span>
+                            </div>
+                            <div class="player-cards"></div>
+                            <div class="player-bet-display"></div>
+                            <div class="dealer-button-display" aria-hidden="true">D</div>
+                        </div>
+                        <div class="seat player-seat" id="seat-7" data-seat="7">
+                            <div class="player-pod">
+                                <span class="player-name"></span>
+                                <span class="player-stack"></span>
+                            </div>
+                            <div class="player-cards"></div>
+                            <div class="player-bet-display"></div>
+                            <div class="dealer-button-display" aria-hidden="true">D</div>
+                        </div>
+                        <div class="seat player-seat" id="seat-8" data-seat="8">
+                            <div class="player-pod">
+                                <span class="player-name"></span>
+                                <span class="player-stack"></span>
+                            </div>
+                            <div class="player-cards"></div>
+                            <div class="player-bet-display"></div>
+                            <div class="dealer-button-display" aria-hidden="true">D</div>
+                        </div>
+                        <div class="seat player-seat" id="seat-9" data-seat="9">
+                            <div class="player-pod">
+                                <span class="player-name"></span>
+                                <span class="player-stack"></span>
+                            </div>
+                            <div class="player-cards"></div>
+                            <div class="player-bet-display"></div>
+                            <div class="dealer-button-display" aria-hidden="true">D</div>
+                        </div>
+                        <div class="community-zone">
+                            <div id="phase-banner" class="phase-banner" aria-live="polite" aria-atomic="true"></div>
+                            <div id="community-cards" class="community-cards" aria-live="polite" aria-atomic="true"></div>
+                        </div>
+                        <div id="pot-container" class="pot-display">
+                            <span class="pot-label">Pot</span>
+                            <div id="side-pots" class="side-pots-container"></div>
+                            <span class="pot-amount" id="pot">0</span>
+                            <div id="game-message" class="pot-message">Waiting for players…</div>
+                        </div>
+                        <div class="table-action-anchor">
+                            <div id="player-controls" class="action-console">
+                                <div class="your-turn-label" aria-live="polite">YOUR TURN</div>
+                                <div class="action-row">
+                                    <button id="btn-fold" class="action-btn fold-btn" type="button">Fold</button>
+                                    <button id="btn-call" class="action-btn call-btn" type="button">Call</button>
+                                    <button id="btn-bet" class="action-btn bet-btn" type="button">Bet <span>-</span></button>
+                                    <button id="btn-allin" class="action-btn allin-btn" type="button">All-in</button>
+                                    <button id="btn-check" class="action-btn check-btn" type="button">Check</button>
+                                </div>
+                                <div class="wager-block">
+                                    <div class="wager-headline">
+                                        <label for="bet-slider" class="wager-label">Bet amount</label>
+                                        <div id="wager-value" class="wager-value">0</div>
+                                    </div>
+                                    <div class="wager-inputs">
+                                        <input type="range" id="bet-slider" min="20" max="1000" value="20">
+                                        <input type="number" id="bet-amount-input" min="0" step="1" value="20" autocomplete="off">
+                                    </div>
+                                    <div class="bet-presets">
+                                        <button data-preset="0.25" class="preset" type="button">1/4 Pot</button>
+                                        <button data-preset="0.5" class="preset" type="button">1/2 Pot</button>
+                                        <button data-preset="0.66" class="preset" type="button">2/3 Pot</button>
+                                        <button data-preset="0.75" class="preset" type="button">3/4 Pot</button>
+                                        <button data-preset="1" class="preset" type="button">Pot</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="turn-timer" class="turn-timer-box">⏱ --</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel-stack">
+                    <section id="auth-container" class="auth" style="display:block;">
+                        <div class="auth-card">
+                            <div class="auth-copy">
+                                <h1 class="hero-title">UNIVERSAL POKER </h1>
+                                <p class="auth-lede">Play and earn.</p>
+                                <ul class="auth-benefits">
+                                    <li>One-click wallet connection</li>
+                                    <li>Transparent WBSTR buy-ins and rewards</li>
+                                    <li>Win big with high-stakes AI matches</li>
+                                    <li>Get loyalty rewards for high-volume play</li>
+                                </ul>
+                            </div>
+                            <div class="auth-form">
+                                <div class="auth-form-inner">
+                                    <div class="hint">Sign in to start playing.</div>
+                                    <div class="row">
+                                        <button id="connect-button" class="link-refresh" data-tooltip="Sync your Universal Profiles">Refresh account list</button>
+                                    </div>
+
+                                    <div id="account-picker" class="account-picker" style="display:none;">
+                                        <div id="account-picker-hint" class="hint" style="width:100%">Select a profile to continue.</div>
+                                        <div id="accounts-loading" class="accounts-loading">Requesting wallet access…</div>
+                                        <div id="accounts-list" class="account-list"></div>
+                                        <div class="account-actions">
+                                            <button id="account-continue" class="control-btn" disabled>Continue</button>
+                                        </div>
+                                    </div>
+                                    <div id="error-message" class="hint" style="min-height:1.2em;"></div>
+                                    <div id="profile-display" class="profile-summary" style="display:none;">
+                                        <img id="profile-image" alt="" width="36" height="36" />
+                                        <div>
+                                            <div id="profile-name">—</div>
+                                            <div id="profile-address" class="hint">—</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section id="postlogin-menu" class="menu-wrapper" style="display:none;">
+                        <div class="menu-scroller">
+                            <!-- Menu Brand Header with Social Links -->
+                            <div class="menu-brand-header">
+                                <div class="menu-brand-title">
+                                    <h1>♠️ Universal Poker</h1>
+                                    <p class="menu-brand-subtitle">On-Chain Texas Hold'em • LUKSO Blockchain</p>
+                                </div>
+                                <div class="menu-social-links">
+                                    <a href="https://x.com/_wokebuster" target="_blank" rel="noopener noreferrer" class="social-link" title="Follow us on X (Twitter)">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                                    </a>
+                                    <a href="https://t.me/+QLGJ4Bb6RCg5ZDM0" target="_blank" rel="noopener noreferrer" class="social-link" title="Join our Telegram">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/></svg>
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="menu-token-area">
+                                <article class="menu-token-card" id="menu-wbstr-card">
+                                    <div class="token-card-top">
+                                        <div class="token-avatar">
+                                            <img id="menu-wbstr-icon" alt="WBSTR token" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='%234CAF50'/%3E%3Ctext x='50' y='65' text-anchor='middle' font-size='40' font-weight='bold' fill='white'%3EW%3C/text%3E%3C/svg%3E" />
+                                            <div id="menu-wbstr-fallback" class="token-avatar-fallback" aria-hidden="true" style="display:none;">WBSTR</div>
+                                        </div>
+                                        <div class="token-meta">
+                                            <span id="menu-wbstr-name" class="token-name">WokeBuster</span>
+                                            <span id="menu-wbstr-symbol" class="token-symbol">WBSTR • LSP7</span>
+                                            <span id="menu-wbstr-address" class="token-address">—</span>
+                                        </div>
+                                        <button id="btn-buy-wbstr" class="buy-token-btn" title="Buy WBSTR tokens">
+                                            <span class="btn-icon">💰</span>
+                                            <span class="btn-text">BUY</span>
+                                        </button>
+                                    </div>
+                                    <div class="token-balance-block">
+                                        <div class="token-balance-line">
+                                            <span class="token-balance-label">Balance</span>
+                                            <div class="token-balance-row">
+                                                <span id="menu-wbstr-balance" class="token-balance-value">Checking…</span>
+                                            </div>
+                                        </div>
+                                        <div class="token-balance-line secondary">
+                                            <span class="token-balance-label">Chips equivalent</span>
+                                            <div class="token-balance-row">
+                                                <span id="menu-wbstr-chips" class="token-balance-value">—</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Claim Button for Manual Withdrawals -->
+                                    <div class="menu-claim-section">
+                                        <button id="menu-claim-all" class="claim-btn" type="button">
+                                            💰 Claim Winnings
+                                        </button>
+                                        <div id="menu-claim-note" class="claim-note"></div>
+                                    </div>
+                                </article>
+                            </div>
+                            <div class="menu-header">
+                                <span class="menu-tag">⚡ Ready to Play</span>
+                                <h2>Choose Your Game</h2>
+                                <p class="menu-lede">Select a game mode below. All games use WBSTR tokens on LUKSO blockchain for secure, transparent wagering.</p>
+                            </div>
+                            <div class="menu-grid">
+                                <button class="menu-btn" data-target="multiplayer-coming-soon">
+                                    <span class="menu-icon" aria-hidden="true">🎮</span>
+                                    <span class="menu-text">
+                                        <span class="menu-title">Multiplayer Poker</span>
+                                        <span class="menu-subtitle">🔜 Coming Soon - Play with friends online!</span>
+                                    </span>
+                                </button>
+                                <button class="menu-btn" data-target="ai">
+                                    <span class="menu-icon" aria-hidden="true">🤖</span>
+                                    <span class="menu-text">
+                                        <span class="menu-title">Play vs AI Bots</span>
+                                        <span class="menu-subtitle">Real WBSTR stakes • Smart opponents • Win instantly on blockchain</span>
+                                    </span>
+                                </button>
+                                <button class="menu-btn" data-target="boards">
+                                    <span class="menu-icon" aria-hidden="true">📈</span>
+                                    <span class="menu-text">
+                                        <span class="menu-title">Leaderboards</span>
+                                        <span class="menu-subtitle">Top players • Total rewards • Win statistics</span>
+                                    </span>
+                                </button>
+                                <button class="menu-btn" data-target="help">
+                                    <span class="menu-icon" aria-hidden="true">💡</span>
+                                    <span class="menu-text">
+                                        <span class="menu-title">Help & Rules</span>
+                                        <span class="menu-subtitle">How to play • Blockchain info • FAQ</span>
+                                    </span>
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section id="setup-panel" class="setup-panel" style="display:none;">
+                        <h3 class="panel-title">Create table</h3>
+                        <p class="hint">Choose a game type, set basic parameters, and publish a public table so others can join.</p>
+                        <div class="row">
+                            <label for="setup-name">Table name</label>
+                            <input id="setup-name" type="text" maxlength="40" placeholder="e.g., Friday Night Poker" title="Public table name, visible in the list" />
+                            <div class="hint">Shown in the public table list (e.g., "Friday Night").</div>
+                        </div>
+                        <div class="row">
+                            <label for="setup-gametype">Game type</label>
+                            <select id="setup-gametype" title="Choose Cash, Sit & Go, or Scheduled Game">
+                                <option value="cash">Cash Game</option>
+                                <option value="sng">Sit & Go</option>
+                                <option value="scheduled">Scheduled Game (at a time)</option>
+                            </select>
+                            <div class="hint">Cash: join/leave anytime. SNG: starts when the table is full. Scheduled: starts at the selected time (if enough players).</div>
+                        </div>
+                        <div class="row">
+                            <label for="setup-players">Players</label>
+                            <input id="setup-players" type="number" min="2" max="9" value="4" title="Desired number of players" />
+                            <div class="hint">Cash is optimized for 2–4 players for fast games; SNG typically 6–9.</div>
+                        </div>
+                        <div class="row">
+                            <label for="setup-stack">Starting stack</label>
+                            <input id="setup-stack" type="number" min="100" step="50" value="1000" title="Starting chips per player" />
+                        </div>
+                        <div class="row two-cols">
+                            <div>
+                                <label for="setup-sb">Small blind</label>
+                                <input id="setup-sb" type="number" min="1" step="1" value="10" title="Small blind (SB)" />
+                            </div>
+                            <div>
+                                <label for="setup-bb">Big blind</label>
+                                <input id="setup-bb" type="number" min="2" step="1" value="20" title="Big blind (BB)" />
+                            </div>
+                        </div>
+                        <div class="row">
+                            <label for="setup-token">Token</label>
+                            <select id="setup-token" title="Choose chip currency">
+                                <option value="LYX">LYX (1 LYX = 100 chips)</option>
+                                <option value="WBSTR">WBSTR (1 WBSTR = 0.01 chips)</option>
+                            </select>
+                        </div>
+                        <div class="row">
+                            <label for="setup-buyin">Buy-in</label>
+                            <input id="setup-buyin" type="number" min="0" step="0.01" value="0" title="Table entry fee (optional)" />
+                            <div class="hint">Optional. If 0, the game is free.</div>
+                        </div>
+                        <div class="row">
+                            <label for="setup-minchips">Minimum chips to play</label>
+                            <input id="setup-minchips" type="number" min="0" step="1" value="0" title="Minimum chips required to sit in" />
+                            <div class="hint">Players must have at least this many chips deposited to sit in.</div>
+                        </div>
+                        <div class="row" id="row-starttime" style="display:none;">
+                            <label for="setup-date">Start date</label>
+                            <input id="setup-date" type="date" title="Start date (Scheduled only)" />
+                            <label for="setup-time" style="margin-left:12px;">Time</label>
+                            <input id="setup-time" type="time" title="Start time (Scheduled only)" />
+                            <div class="hint" style="width:100%">Used only for "Scheduled Game" — starts automatically at the chosen time if enough players.</div>
+                            <div id="tz-hint" class="hint" style="width:100%"></div>
+                        </div>
+                        <div class="actions row">
+                            <button id="btn-create-table" class="control-btn">Create public table</button>
+                            <span id="create-table-result" class="hint" style="margin-left:8px;"></span>
+                        </div>
+                    </section>
+
+                    <section id="panel-join" class="panel" style="display:none;">
+                        <h3 class="panel-title">Join a game</h3>
+                        <div class="row">
+                            <input id="join-table-id" type="text" placeholder="Table ID" />
+                            <button id="btn-join-table" class="control-btn">Join</button>
+                        </div>
+                        <div class="row" id="deposit-row" style="display:none;">
+                            <div class="hint">This table enforces a minimum. Deposit chips to meet the requirement:</div>
+                            <div class="two-cols">
+                                <input id="deposit-amount" type="number" min="1" step="1" placeholder="Chips" />
+                                <button id="btn-deposit" class="control-btn secondary">Deposit</button>
+                            </div>
+                            <div id="deposit-result" class="hint"></div>
+                        </div>
+                        <div class="row two-cols">
+                            <div>
+                                <label for="join-filter-type">Filter</label>
+                                <select id="join-filter-type">
+                                    <option value="all">All</option>
+                                    <option value="cash">Cash</option>
+                                    <option value="sng">Sit & Go</option>
+                                    <option value="scheduled">Scheduled Game</option>
+                                </select>
+                            </div>
+                            <div class="quick-actions">
+                                <button id="btn-create-sng" class="control-btn secondary">Quick SNG</button>
+                                <button id="btn-refresh-tables" class="control-btn secondary">Refresh public tables</button>
+                            </div>
+                        </div>
+                        <div id="public-tables" class="list"></div>
+                    </section>
+
+                    <section id="panel-waiting" class="panel" style="display:none;">
+                        <h3 class="panel-title">Waiting room: <span id="waiting-table-title"></span></h3>
+                        <div class="row">
+                            <div id="waiting-table-meta" class="hint"></div>
+                        </div>
+                        <div class="row">
+                            <div class="list" id="waiting-players"></div>
+                        </div>
+                        <div class="row">
+                            <div class="list chat-log" id="waiting-chat"></div>
+                        </div>
+                        <div class="row two-cols">
+                            <input id="chat-input" type="text" placeholder="Type a message…" />
+                            <button id="btn-chat-send" class="control-btn">Send</button>
+                        </div>
+                        <div class="row">
+                            <button id="btn-start-table" class="control-btn">Start game</button>
+                            <button id="btn-leave-waiting" class="control-btn secondary">Leave waiting room</button>
+                        </div>
+                    </section>
+
+                    <!-- Coming Soon: Multiplayer Games -->
+                    <section id="panel-multiplayer-coming-soon" class="panel" style="display:none;">
+                        <div class="panel-header">
+                            <button class="panel-back-btn" data-back-to="main-menu">← Back to Menu</button>
+                            <h3 class="panel-title">🎮 Multiplayer Games - Coming Soon!</h3>
+                        </div>
+                        <div class="row intro">
+                            <div class="hint" style="text-align: center; padding: 2rem;">
+                                <h4 style="margin-bottom: 1rem;">🚀 Under Development</h4>
+                                <p style="margin-bottom: 1rem;">We're working hard to bring you exciting multiplayer poker experiences!</p>
+                                <p style="margin-bottom: 1.5rem;"><strong>Coming features:</strong></p>
+                                <ul style="text-align: left; max-width: 400px; margin: 0 auto; list-style: none; padding: 0;">
+                                    <li style="margin-bottom: 0.5rem;">💼 <strong>Cash Games</strong> - Create custom tables with your own blinds and stakes</li>
+                                    <li style="margin-bottom: 0.5rem;">🏆 <strong>Sit & Go Tournaments</strong> - Quick single-table tournaments</li>
+                                    <li style="margin-bottom: 0.5rem;">🗓️ <strong>Scheduled Games</strong> - Plan games in advance with friends</li>
+                                    <li style="margin-bottom: 0.5rem;">🎟️ <strong>Join Games</strong> - Browse and join public tables</li>
+                                </ul>
+                                <p style="margin-top: 1.5rem; color: #888;">For now, enjoy <strong>Play vs PC</strong> mode with real WBSTR rewards!</p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section id="panel-ai" class="panel" style="display:none;">
+                        <div class="panel-header">
+                            <button class="panel-back-btn" data-back-to="main-menu">← Back to Menu</button>
+                            <h3 class="panel-title">🤖 Play vs AI Bots</h3>
+                        </div>
+                        <div class="row intro">
+                            <div class="hint">
+                                <h4 style="margin-bottom: 0.75rem; color: #60a5fa;">⚡ Quick Start Guide</h4>
+                                <ol style="margin: 0.5rem 0; padding-left: 1.5rem; line-height: 1.8;">
+                                    <li><strong>Choose difficulty</strong> - More bots, higher rewards</li>
+                                    <li><strong>Set your buy-in</strong> - WBSTR tokens deposited automatically</li>
+                                    <li><strong>Eliminate all bots</strong> - Win only if you beat every AI opponent</li>
+                                    <li><strong>Get paid instantly</strong> - Blockchain processes your winnings automatically</li>
+                                </ol>
+                                
+                                <div style="margin-top: 1.5rem; padding: 1rem; background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(59, 130, 246, 0.1)); border-left: 3px solid #60a5fa; border-radius: 8px;">
+                                    <p style="margin: 0 0 0.75rem 0; font-weight: 600; color: #f8fafc;">💰 Reward Structure:</p>
+                                    <ul style="margin: 0; padding-left: 1.5rem; list-style: none; line-height: 1.8;">
+                                        <li>🟢 <strong>Easy</strong> (2 bots): Buy-in + <span style="color: #22c55e;">20% bonus</span></li>
+                                        <li>🟡 <strong>Medium</strong> (4 bots): Buy-in + <span style="color: #f59e0b;">45% bonus</span></li>
+                                        <li>🔴 <strong>Hard</strong> (6 bots): Buy-in + <span style="color: #ef4444;">110% bonus</span></li>
+                                    </ul>
+                                </div>
+                                
+                                <p style="margin-top: 1rem; padding: 0.875rem; background: rgba(59, 130, 246, 0.1); border-radius: 8px; font-size: 0.9rem; line-height: 1.6;">
+                                    <strong>ℹ️ Blockchain Integration:</strong> All games use WBSTR tokens on LUKSO network. Wins and losses are settled automatically - no manual claiming required.
+                                </p>
+                            </div>
+                        </div>
+                        <div class="row two-cols">
+                            <div>
+                                <label for="ai-difficulty">Difficulty</label>
+                                <select id="ai-difficulty">
+                                    <option value="easy">Easy - 2 bots (reward +20%)</option>
+                                    <option value="medium">Medium - 4 bots (reward +45%)</option>
+                                    <option value="hard">Hard - 6 bots (reward +110%)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="ai-bots">Number of bots (fixed by difficulty)</label>
+                                <input id="ai-bots" type="number" min="1" max="8" value="2" disabled aria-disabled="true" />
+                            </div>
+                        </div>
+                        <div class="row two-cols">
+                            <div>
+                                <label for="ai-stack">Starting stack (chips)</label>
+                                <input id="ai-stack" type="number" min="100" max="1000" step="10" value="100" />
+                                <small id="ai-stack-hint" style="color: #888; font-size: 0.85em;">Minimum 100 chips. Easy: 100-500, Medium: 100-750, Hard: 100-1000</small>
+                            </div>
+                            <div></div>
+                        </div>
+                        <div class="row two-cols">
+                            <div>
+                                <label for="ai-sb">Starting SB (fixed)</label>
+                                <input id="ai-sb" type="number" min="1" step="1" value="5" disabled aria-disabled="true" />
+                            </div>
+                            <div>
+                                <label for="ai-bb">Starting BB (fixed)</label>
+                                <input id="ai-bb" type="number" min="2" step="1" value="10" disabled aria-disabled="true" />
+                            </div>
+                        </div>
+                        <div class="row">
+                            <button id="btn-start-ai" class="control-btn">Start PC game (WBSTR)</button>
+                            <span class="hint" id="ai-token-label">Currency: WBSTR (LSP7). 1 chip = 1000&nbsp;WBSTR (≈0.001 chip per WBSTR). Public tables are WBSTR-only.</span>
+                        </div>
+                        <div class="row">
+                            <div id="ai-error-message" style="display: none; padding: 1rem; background: rgba(239, 68, 68, 0.1); border-left: 3px solid #ef4444; border-radius: 8px; color: #fecaca; margin-bottom: 1rem;"></div>
+                        </div>
+                        <div class="row">
+                            <div id="ai-potential-reward" class="hint">Potential reward: -</div>
+                        </div>
+                        <div class="row">
+                            <div id="ai-wbstr-hint" class="hint">Example: 100 chips ≈ 100,000 WBSTR.</div>
+                        </div>
+                    </section>
+
+                    <section id="panel-boards" class="panel" style="display:none;">
+                        <div class="panel-header">
+                            <button class="panel-back-btn" data-back-to="main-menu">← Back to Menu</button>
+                            <h3 class="panel-title">🏆 Play vs PC Leaderboards</h3>
+                        </div>
+                        <div class="row intro">
+                            <div class="hint">
+                                <p>Compete with other players! Rankings are based on your performance in Play vs PC matches.</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Category Selector -->
+                        <div class="row">
+                            <label for="board-category">Ranking Category</label>
+                            <select id="board-category">
+                                <option value="wins">🏅 Most Wins</option>
+                                <option value="rewards">💰 Total Rewards Earned</option>
+                                <option value="volume">📊 Highest Volume (Total Wagered)</option>
+                                <option value="games">🎮 Most Games Played</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Leaderboard Display -->
+                        <div id="leaderboard-container" style="margin-top: 1rem;">
+                            <div id="leaderboard-loading" style="text-align: center; padding: 2rem; color: #888;">
+                                Loading leaderboard...
+                            </div>
+                            <div id="leaderboard-list" style="display: none;"></div>
+                            <div id="leaderboard-empty" style="display: none; text-align: center; padding: 2rem; color: #888;">
+                                No data yet. Be the first to play!
+                            </div>
+                        </div>
+                        
+                        <div class="row" style="margin-top: 1rem;">
+                            <button id="btn-refresh-boards" class="control-btn secondary">🔄 Refresh</button>
+                        </div>
+                    </section>
+
+                    <section id="panel-help" class="panel" style="display:none;">
+                        <div class="panel-header">
+                            <button class="panel-back-btn" data-back-to="main-menu">← Back to Menu</button>
+                            <h3 class="panel-title">💡 Help & Rules</h3>
+                        </div>
+                        
+                        <div class="hint" style="margin-bottom: 1.5rem;">
+                            <h4 style="margin-bottom: 0.75rem; color: #60a5fa;">🃏 Texas Hold'em Basics</h4>
+                            <p style="line-height: 1.7; margin-bottom: 0.75rem;">
+                                Each player receives 2 private cards. Five community cards are revealed in stages (Flop, Turn, River). 
+                                Make the best 5-card hand using any combination of your hole cards and the board.
+                            </p>
+                            <p style="line-height: 1.7;">
+                                <strong>Hand Rankings:</strong> Royal Flush → Straight Flush → Four of a Kind → Full House → Flush → Straight → Three of a Kind → Two Pair → Pair → High Card
+                            </p>
+                        </div>
+                        
+                        <div class="hint" style="margin-bottom: 1.5rem;">
+                            <h4 style="margin-bottom: 0.75rem; color: #60a5fa;">💰 How Betting Works</h4>
+                            <ul style="line-height: 1.8; padding-left: 1.5rem;">
+                                <li><strong>Blinds:</strong> Small blind (SB) and big blind (BB) are forced bets that start each hand</li>
+                                <li><strong>Actions:</strong> Fold (quit hand), Check (pass), Call (match bet), Raise (increase bet)</li>
+                                <li><strong>All-In:</strong> Bet all remaining chips - can win main pot + side pots</li>
+                                <li><strong>Showdown:</strong> Remaining players reveal cards, best hand wins the pot</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="hint" style="margin-bottom: 1.5rem;">
+                            <h4 style="margin-bottom: 0.75rem; color: #60a5fa;">⛓️ Blockchain Integration</h4>
+                            <ul style="line-height: 1.8; padding-left: 1.5rem;">
+                                <li><strong>Token:</strong> WBSTR (Wrapped BSTR) on LUKSO mainnet - LSP7 standard</li>
+                                <li><strong>Conversion:</strong> 1 chip = 1,000 WBSTR (e.g., 100 chips = 100,000 WBSTR)</li>
+                                <li><strong>Automatic:</strong> Deposits, escrow, and payouts happen on-chain - fully transparent</li>
+                                <li><strong>Gas-Free:</strong> Server covers transaction costs - you only pay the buy-in</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="hint" style="padding: 1rem; background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(147, 51, 234, 0.1)); border-radius: 8px;">
+                            <h4 style="margin-bottom: 0.75rem; color: #60a5fa;">❓ FAQ</h4>
+                            <p style="line-height: 1.7; margin-bottom: 0.5rem;"><strong>Q: What if I lose connection?</strong><br>
+                            A: The server will auto-fold your hand after timeout. Your remaining stack stays in escrow.</p>
+                            <p style="line-height: 1.7; margin-bottom: 0.5rem;"><strong>Q: How long do payouts take?</strong><br>
+                            A: Instant! Blockchain transactions process automatically when the game ends.</p>
+                            <p style="line-height: 1.7;"><strong>Q: Is there a house rake?</strong><br>
+                            A: Yes, 3% fee taken on deposit. Example: Deposit 100 chips → 97 chips in play, 3 to house.</p>
+                        </div>
+                    </section>
+                </div>
+            </main>
+
+            <section class="action-controls">
+                <div class="control-topline">
+                    <div class="table-toolbar">
+                        <button id="btn-toggle-log" class="control-btn util-btn secondary" title="Hand History">History</button>
+                        <button id="btn-start-game" class="start-btn" style="display:none;">Start game</button>
+                        <button id="btn-back-menu" class="control-btn secondary" style="display:none;">Back to menu</button>
+                    </div>
+                </div>
+                <div id="action-log" class="action-log hidden"></div>
+            </section>
+        </div>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,41 @@
+# Node modules
+# Node/Firebase artifacts
+node_modules/
+frontend/node_modules/
+functions/node_modules/
+**/.env.local
+.env
+firebase-debug.log
+
+# Vite / Firebase build output
+frontend/dist/
+functions/lib/
+functions/.firebase/
+.firebase/
+
+# Hardhat artifacts
+artifacts/
+cache/
+deployments/
+ignition/deployments/
+
+# OS/editor junk
+.DS_Store
+Thumbs.db
+.vscode/
+*.log
+
+# Compilation output
+frontend/dist/
+
+# pnpm deploy output
+# Secrets
+.secret.local
+.secrets
+# Typechain output
+# Typechain output
+/types
+
+# Hardhat coverage reports
+# Hardhat coverage reports
+/coverage

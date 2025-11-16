@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Poker Table Layout Test</title>
+    <link rel="stylesheet" href="src/style.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #0a1628;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+        .test-container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .controls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(15, 23, 42, 0.95);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            color: #e2e8f0;
+            z-index: 1000;
+            max-width: 300px;
+        }
+        .controls h3 {
+            margin: 0 0 15px 0;
+            color: #60a5fa;
+            font-size: 16px;
+        }
+        .controls p {
+            margin: 0 0 10px 0;
+            font-size: 13px;
+            line-height: 1.6;
+            color: #cbd5e1;
+        }
+        .controls code {
+            background: rgba(100, 116, 139, 0.2);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: #86efac;
+        }
+        .seat.occupied .player-pod {
+            display: flex !important;
+        }
+        .seat.occupied {
+            opacity: 1 !important;
+        }
+        .info-badge {
+            position: absolute;
+            top: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(59, 130, 246, 0.9);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <div class="poker-module mode-game">
+            <main class="poker-stage">
+                <div class="table-area" aria-label="Poker table test">
+                    <div class="table">
+                        <!-- Seat 1 - YOU -->
+                        <div class="seat player-seat occupied is-hero" id="seat-1" data-seat="1">
+                            <div class="info-badge">SEAT 1 - YOU</div>
+                            <div class="player-pod">
+                                <span class="player-name">YOU</span>
+                                <span class="player-stack">100</span>
+                            </div>
+                            <div class="player-cards"></div>
+                            <div class="player-bet-display"></div>
+                            <div class="dealer-button-display" aria-hidden="true">D</div>
+                        </div>
+
+                        <!-- Seat 2 -->
+                        <div class="seat player-seat occupied opponent" id="seat-2" data-seat="2">
+                            <div class="info-badge">SEAT 2</div>
+                            <div class="player-pod">
+                                <span class="player-name">SEAT 2</span>
+                                <span class="player-stack">100</span>
+                            </div>
+                            <div class="player-cards"></div>
+                            <div class="player-bet-display"></div>
+                            <div class="dealer-button-display" aria-hidden="true">D</div>
+                        </div>
+
+                        <!-- Seat 3 -->
+                        <div class="seat player-seat occupied opponent" id="seat-3" data-seat="3">
+                            <div class="info-badge">SEAT 3</div>
+                            <div class="player-pod">
+                                <span class="player-name">SEAT 3</span>
+                                <span class="player-stack">100</span>
+                            </div>
+                            <div class="player-cards"></div>
+                            <div class="player-bet-display"></div>
+                            <div class="dealer-button-display" aria-hidden="true">D</div>
+                        </div>
+
+                        <!-- Seat 4 -->
+                        <div class="seat player-seat occupied opponent" id="seat-4" data-seat="4">
+                            <div class="info-badge">SEAT 4</div>
+                            <div class="player-pod">
+                                <span class="player-name">SEAT 4</span>
+                                <span class="player-stack">100</span>
+                            </div>
+                            <div class="player-cards"></div>
+                            <div class="player-bet-display"></div>
+                            <div class="dealer-button-display" aria-hidden="true">D</div>
+                        </div>
+
+                        <!-- Seat 5 - BOT 4 -->
+                        <div class="seat player-seat occupied opponent" id="seat-5" data-seat="5">
+                            <div class="info-badge">SEAT 5 (BOT 4 zgoraj)</div>
+                            <div class="player-pod">
+                                <span class="player-name">BOT 4</span>
+                                <span class="player-stack">100</span>
+                            </div>
+                            <div class="player-cards"></div>
+                            <div class="player-bet-display"></div>
+                            <div class="dealer-button-display" aria-hidden="true">D</div>
+                        </div>
+
+                        <!-- Seat 6 -->
+                        <div class="seat player-seat occupied opponent" id="seat-6" data-seat="6">
+                            <div class="info-badge">SEAT 6</div>
+                            <div class="player-pod">
+                                <span class="player-name">SEAT 6</span>
+                                <span class="player-stack">100</span>
+                            </div>
+                            <div class="player-cards"></div>
+                            <div class="player-bet-display"></div>
+                            <div class="dealer-button-display" aria-hidden="true">D</div>
+                        </div>
+
+                        <!-- Seat 7 - BOT 2 -->
+                        <div class="seat player-seat occupied opponent" id="seat-7" data-seat="7">
+                            <div class="info-badge">SEAT 7 (BOT 2 levo)</div>
+                            <div class="player-pod">
+                                <span class="player-name">BOT 2</span>
+                                <span class="player-stack">100</span>
+                            </div>
+                            <div class="player-cards"></div>
+                            <div class="player-bet-display"></div>
+                            <div class="dealer-button-display" aria-hidden="true">D</div>
+                        </div>
+
+                        <!-- Seat 8 -->
+                        <div class="seat player-seat occupied opponent" id="seat-8" data-seat="8">
+                            <div class="info-badge">SEAT 8</div>
+                            <div class="player-pod">
+                                <span class="player-name">SEAT 8</span>
+                                <span class="player-stack">100</span>
+                            </div>
+                            <div class="player-cards"></div>
+                            <div class="player-bet-display"></div>
+                            <div class="dealer-button-display" aria-hidden="true">D</div>
+                        </div>
+
+                        <!-- Seat 9 -->
+                        <div class="seat player-seat occupied opponent" id="seat-9" data-seat="9">
+                            <div class="info-badge">SEAT 9</div>
+                            <div class="player-pod">
+                                <span class="player-name">SEAT 9</span>
+                                <span class="player-stack">100</span>
+                            </div>
+                            <div class="player-cards"></div>
+                            <div class="player-bet-display"></div>
+                            <div class="dealer-button-display" aria-hidden="true">D</div>
+                        </div>
+
+                        <!-- Center pot area -->
+                        <div class="pot-area">
+                            <div class="pot-label">POT: 0</div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <div class="controls">
+        <h3>🎯 Layout Test Mode</h3>
+        <p><strong>Kako uporabljati:</strong></p>
+        <p>1. Odpri <code>style.css</code></p>
+        <p>2. Poišči sekcijo z <code>.seat[data-seat="X"]</code></p>
+        <p>3. Spreminjaj <code>left</code> in <code>top</code> vrednosti</p>
+        <p>4. Shrani in refresh to stran</p>
+        <p><strong>Primer:</strong><br>
+        <code>left: 50%;</code> (levo-desno)<br>
+        <code>top: 10%;</code> (gor-dol)</p>
+        <p><strong>Nastavitve:</strong><br>
+        • Višje gor = <strong>manjši top %</strong><br>
+        • Bolj desno = <strong>večji left %</strong></p>
+    </div>
+</body>
+</html>

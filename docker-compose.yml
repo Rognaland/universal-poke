@@ -1,0 +1,124 @@
+version: "3.9"
+
+services:
+  firebase:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8080:8080" # Firestore
+      - "5001:5001" # Functions
+      - "4000:4000" # Emulator UI
+      - "4400:4400" # Emulator Hub
+    volumes:
+      - ./deployments:/app/deployments # share live deployment addresses
+    env_file:
+      - ./functions/.secret.local
+    environment:
+      - FIREBASE_VSCODE_EXTENSION_HOST=
+      - RPC_URL=http://hardhat:8545
+      - PRIVATE_KEY=${PRIVATE_KEY:-}
+      - PRIZE_DISTRIBUTOR=${PRIZE_DISTRIBUTOR:-}
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 8080 || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  hardhat:
+    build:
+      context: .
+      dockerfile: Dockerfile.hardhat
+    depends_on:
+      firebase:
+        condition: service_healthy
+    ports:
+      - "8545:8545"
+    volumes:
+      - ./deployments:/app/deployments
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 8545 || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  hardhat-deploy:
+    build:
+      context: .
+      dockerfile: Dockerfile.hardhat
+    depends_on:
+      hardhat:
+        condition: service_healthy
+    command: ["npx", "hardhat", "run", "--network", "docker", "scripts/deploy.js"]
+    volumes:
+      - ./deployments:/app/deployments
+
+  hardhat-test:
+    build:
+      context: .
+      dockerfile: Dockerfile.hardhat
+    depends_on:
+      firebase:
+        condition: service_healthy
+      hardhat:
+        condition: service_healthy
+      hardhat-deploy:
+        condition: service_completed_successfully
+    command: ["node", "/app/scripts/e2e_play_vs_pc_test.js"]
+    volumes:
+      - ./deployments:/app/deployments
+    environment:
+      - FNS_URL=http://firebase:5001/poker-4683e/us-central1
+      - FS_URL=http://firebase:8080/v1/projects/poker-4683e/databases/(default)/documents
+      - RPC_URL=http://hardhat:8545
+    restart: "no"
+
+  fund-wallet:
+    build:
+      context: .
+      dockerfile: Dockerfile.hardhat
+    depends_on:
+      hardhat:
+        condition: service_healthy
+    env_file:
+      - ./functions/.secret.local
+    command: ["node", "/app/scripts/fund_test_wallet.cjs"]
+    environment:
+      - RPC_URL=http://hardhat:8545
+      - FUND_RECIPIENT=0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc
+    restart: "no"
+
+  frontend:
+    image: node:20
+    working_dir: /app/frontend
+    depends_on:
+      firebase:
+        condition: service_healthy
+    command: ["sh", "-c", "npm install --no-audit --no-fund --legacy-peer-deps && npm run dev -- --host 0.0.0.0 --port 5173"]
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app/frontend
+      - ./frontend/package.json:/app/frontend/package.json
+      - ./frontend/package-lock.json:/app/frontend/package-lock.json
+
+  runner:
+    build:
+      context: .
+      dockerfile: Dockerfile.hardhat
+    profiles: ["manual"]
+    depends_on:
+      firebase:
+        condition: service_healthy
+      hardhat:
+        condition: service_healthy
+      hardhat-deploy:
+        condition: service_completed_successfully
+    command: ["sh", "-c", "npx hardhat run --network docker scripts/deploy.js && node /app/scripts/e2e_play_vs_pc_test.js"]
+    volumes:
+      - ./:/app
+      - ./deployments:/app/deployments
+    environment:
+      - FNS_URL=http://firebase:5001/poker-4683e/us-central1
+      - FS_URL=http://firebase:8080/v1/projects/poker-4683e/databases/(default)/documents
+      - RPC_URL=http://hardhat:8545
+    restart: "no"

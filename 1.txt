@@ -1,0 +1,9 @@
+💰 Table iA4Qwh1i1qbgAmSJwtGc (onchain: 27684125442101737690105987467353272885644809609209289190209316121203756244192) balance: 97000000000000000000000
+main.js:2246 💸 Found withdrawals: Array(2)
+main.js:2253 🏦 Withdrawing 97000000000000000000000 from table Cf5vkwT5KvpETjV9669B (onchain: 61443822013705781338185599466354648305330800370182448012730698740864206547693)…
+services.chain.js:909 🏦 withdrawFromVault called: Object
+services.chain.js:917 📝 Calling vault.withdraw with: Object
+
+to igro sem izgubil in ta sredstva bi morala iti na house wallet ampak to se ni zgodilo poglej logge zakaj server wallet to ni naredil ter kako to mora narediti da bo delalo da gredo sredstva iz mize vn
+
+

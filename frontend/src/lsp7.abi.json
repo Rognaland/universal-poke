@@ -1,0 +1,79 @@
+{[
+
+  "abi": [  {
+
+        "inputs": [],
+
+  ]    "name": "decimals",
+
+}    "outputs": [ { "internalType": "uint8", "name": "", "type": "uint8" } ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "totalSupply",
+    "outputs": [ { "internalType": "uint256", "name": "", "type": "uint256" } ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [ { "internalType": "address", "name": "tokenOwner", "type": "address" } ],
+    "name": "balanceOf",
+    "outputs": [ { "internalType": "uint256", "name": "", "type": "uint256" } ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "operator", "type": "address" },
+      { "internalType": "uint256", "name": "amount", "type": "uint256" }
+    ],
+    "name": "authorizeOperator",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "operator", "type": "address" },
+      { "internalType": "address", "name": "tokenOwner", "type": "address" }
+    ],
+    "name": "authorizedAmountFor",
+    "outputs": [ { "internalType": "uint256", "name": "", "type": "uint256" } ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "operator", "type": "address" },
+      { "internalType": "address", "name": "tokenOwner", "type": "address" }
+    ],
+    "name": "isOperatorFor",
+    "outputs": [ { "internalType": "bool", "name": "", "type": "bool" } ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "tokenOwner", "type": "address" }
+    ],
+    "name": "getOperatorsOf",
+    "outputs": [ { "internalType": "address[]", "name": "", "type": "address[]" } ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "from", "type": "address" },
+      { "internalType": "address", "name": "to", "type": "address" },
+      { "internalType": "uint256", "name": "amount", "type": "uint256" },
+      { "internalType": "bool", "name": "force", "type": "bool" },
+      { "internalType": "bytes", "name": "data", "type": "bytes" }
+    ],
+    "name": "transfer",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+]

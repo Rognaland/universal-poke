@@ -1,0 +1,124 @@
+{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "functions": {
+    "source": "functions",
+    "runtime": "nodejs20"
+  },
+    "hosting": {
+      "site": "universalpoker",
+      "public": "frontend/dist",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "redirects": [
+        {
+          "source": "/index.html",
+          "destination": "/",
+          "type": 301
+        }
+      ],
+      "rewrites": [
+        {
+          "source": "**",
+          "destination": "/index.html"
+        }
+      ],
+      "headers": [
+        {
+          "source": "/index.html",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-cache, no-store, must-revalidate, max-age=0"
+            },
+            {
+              "key": "Pragma",
+              "value": "no-cache"
+            },
+            {
+              "key": "Expires",
+              "value": "0"
+            }
+          ]
+        },
+        {
+          "source": "index.html",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-cache, no-store, must-revalidate, max-age=0"
+            },
+            {
+              "key": "Pragma",
+              "value": "no-cache"
+            },
+            {
+              "key": "Expires",
+              "value": "0"
+            }
+          ]
+        },
+        {
+          "source": "**/index.html",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-cache, no-store, must-revalidate, max-age=0"
+            },
+            {
+              "key": "Pragma",
+              "value": "no-cache"
+            },
+            {
+              "key": "Expires",
+              "value": "0"
+            }
+          ]
+        },
+        {
+          "source": "**/*.js",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "public, max-age=300, must-revalidate"
+            }
+          ]
+        },
+        {
+          "source": "**/*.css",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "public, max-age=300, must-revalidate"
+            }
+          ]
+        }
+      ]
+    },  "emulators": {
+    "firestore": {
+  "port": 8080,
+  "host": "0.0.0.0"
+    },
+    "functions": {
+  "port": 5001,
+  "host": "0.0.0.0"
+    },
+    "ui": {
+      "enabled": true,
+      "port": 4000
+    },
+    "hub": {
+  "port": 4400,
+  "host": "0.0.0.0"
+    },
+    "hosting": {
+      "port": 5000
+    },
+    "singleProjectMode": true
+  }
+}
