@@ -1050,7 +1050,8 @@ const initApp = async () => {
         }
     }
     
-    async function completeLogin(account) {
+    const appElement = document.querySelector('.poker-module');
+    appElement.__completeLogin = async function completeLogin(account) {
         if (!account) throw new Error('Please select an account to continue.');
         const raw = window.lukso || window.ethereum;
         if (!raw) throw new Error('No LUKSO provider found. Install the Universal Profile browser extension.');
@@ -3407,6 +3408,18 @@ try {
     initApp(); 
 } catch (e) { 
     console.error('init error', e); 
+}
+
+// Expose a test API for Playwright
+if (import.meta.env.DEV) {
+    window.testApi = {
+        completeLogin: (account) => {
+            const app = document.querySelector('.poker-module');
+            if (app && app.__completeLogin) {
+                app.__completeLogin(account);
+            }
+        }
+    };
 }
 
 // --- ODSTRANJENO ---
