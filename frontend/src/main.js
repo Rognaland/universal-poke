@@ -3410,18 +3410,6 @@ try {
     console.error('init error', e); 
 }
 
-// Expose a test API for Playwright
-if (import.meta.env.DEV) {
-    window.testApi = {
-        completeLogin: (account) => {
-            const app = document.querySelector('.poker-module');
-            if (app && app.__completeLogin) {
-                app.__completeLogin(account);
-            }
-        }
-    };
-}
-
 // --- ODSTRANJENO ---
 // Ogromen podvojen blok kode, ki je bil tukaj, je odstranjen.
 // Vseboval je ponovitev logike za `openPanel` in `startJoinRealtime`,

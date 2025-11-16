@@ -1,3 +1,42 @@
+/*
+    ================================================================================================
+    PREGLED LOGIKE ZA IGRE ZA VEČ IGRALCEV IN ON-CHAIN TRANSAKCIJE
+    ================================================================================================
+
+    Ta datoteka vsebuje celotno logiko ozadja (backend) za upravljanje poker iger, vključno z načinom za več igralcev.
+    Spodaj je opisan potek od ustvarjanja igre do izplačila nagrad, s poudarkom na interakcijah s pametnimi pogodbami (on-chain).
+
+    1. USTVARJANJE IGRE IN VSTOPNINA (BUY-IN):
+       - Igralec (gostitelj) na frontendu izbere "Create Game" in nastavi parametre, kot so število igralcev in znesek vstopnine.
+       - Frontend komunicira s to logiko ozadja (npr. preko funkcije, podobne `startAiGame`), ki v zbirki podatkov Firestore ustvari novo "mizo" (table) z ustreznimi nastavitvami (`maxPlayers`, `buyin`, `status: 'waiting'`).
+       - Ostali igralci se pridružijo mizi. Ko se igralec pridruži, se od njega zahteva plačilo vstopnine (buy-in).
+       - Plačilo se izvede on-chain s klicem pametne pogodbe `GameVault`. Igralec nakaže sredstva (npr. LYX ali LSP7 žetone) v `GameVault`, ki deluje kot depozit (escrow) za čas trajanja igre.
+       - Ta strežnik preveri uspešnost transakcije tako, da preveri dogodke (events), ki jih odda pogodba `GameVault`.
+
+    2. ZAČETEK IGRE:
+       - Ko se zbere dovolj igralcev, ki so vplačali vstopnino (kot je določil gostitelj), se stanje mize v Firestore spremeni v `status: 'active'`.
+       - Ta sprememba sproži funkcijo `onTableStatusChange` (trigger).
+       - `onTableStatusChange` nato pokliče `initializeNewHand`, ki pripravi in zažene prvo rundo igre (premeša karte, določi delivca, postavi stave na slepo itd.).
+
+    3. POTEK IGRE:
+       - Igralci izvajajo poteze (fold, check, call, raise), ki se beležijo v Firestore.
+       - Strežnik preko funkcij, kot je `applyPlayerAction`, posodablja stanje igre (višino stav, kdo je na vrsti, skupni znesek v potu).
+       - Igra se nadaljuje skozi posamezne faze (flop, turn, river).
+
+    4. KONEC RUNDE IN DOLOČITEV ZMAGOVALCA (SHOWDOWN):
+       - Ko se runda zaključi, se pokliče funkcija `showdownAndPayout`.
+       - Ta funkcija s pomočjo knjižnice `pokersolver` ugotovi, kateri igralec ima najmočnejšo kombinacijo kart.
+       - Izračuna se znesek, ki ga prejme zmagovalec (ali več zmagovalcev v primeru delitve pota). Celoten pot gre zmagovalcu ("winner-takes-all").
+
+    5. ON-CHAIN IZPLAČILO:
+       - Ključna funkcija za izplačila je `authorizePayoutsOnChain`.
+       - Ta funkcija prejme podatke o zmagovalcu in znesku dobitka.
+       - Strežnik s svojim privatnim ključem podpiše in pošlje transakcijo na pametno pogodbo `PrizeDistributor`. S tem "avtorizira" izplačilo zmagovalcu.
+       - Nato se sproži funkcija `attemptVaultWithdrawal`, ki zmagovalcu omogoči dvig sredstev neposredno iz `GameVault` pogodbe. Sredstva se prenesejo iz `GameVault` v denarnico zmagovalca.
+
+    CELOTEN CIKEL JE AVTOMATIZIRAN IN ZAGOTAVLJA, DA SO SREDSTVA VARNO SHRANJENA V PAMETNI POGODBI TER DA SE IZPLAČILA IZVEDEJO SAMO ZMAGOVALCEM V SKLADU S PRAVILI IGRE.
+    VSA POTREBNA LOGIKA ŽE OBSTAJA V TEJ DATOTEKI.
+*/
 const admin = require("firebase-admin");
 // Robust loader for firebase-functions v2 APIs across versions/environments
 let onDocumentUpdated, onDocumentDeleted, onDocumentCreated, onSchedule, defineSecret;
