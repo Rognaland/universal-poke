@@ -477,7 +477,7 @@ function getCfg() {
         privateKey: normHex((PRIVATE_KEY.value && PRIVATE_KEY.value()) || process.env.PRIVATE_KEY),
         prizeDistributor: s((PRIZE_DISTRIBUTOR.value && PRIZE_DISTRIBUTOR.value()) || process.env.PRIZE_DISTRIBUTOR),
         allowedLsp7: lower((ALLOWED_LSP7_TOKEN.value && ALLOWED_LSP7_TOKEN.value()) || process.env.ALLOWED_LSP7_TOKEN || ''),
-        lyxMultiplier: s(LYX_UNIT_MULTIPLIER.value && LYX_UNIT_MULTIPLIER.value() || process.env.LYX_UNIT_MULTIPLIER || '10000000000000000'),
+        lyxMultiplier: s(LYX_UNIT_MULTIPLIER.value && LYX_UNIT_MULTIPLIER.value() || process.env.LYX_UNIT_MULTIPLIER || '100000000000000000'),
         lsp7Multiplier: s(LSP7_UNIT_MULTIPLIER.value && LSP7_UNIT_MULTIPLIER.value() || process.env.LSP7_UNIT_MULTIPLIER || '1000000000000000000000'),
         // Game vault address for deposit verification. Configure via env GAME_VAULT or secret.
         gameVault: s((GAME_VAULT.value && GAME_VAULT.value()) || process.env.GAME_VAULT || process.env.VAULT_ADDRESS || null),
@@ -3309,8 +3309,8 @@ async function initializeNewHand(tableId) {
     let unitMultiplier;
     if (inputToken === ZERO) {
         tokenAddress = ethers.ZeroAddress;
-        // 1 chip = 0.01 LYX; 1 LYX = 1e18 wei => 0.01 * 1e18 = 1e16 wei per chip
-        unitMultiplier = "10000000000000000"; // 1e16
+    // 1 chip = 0.1 LYX; 1 LYX = 1e18 wei => 0.1 * 1e18 = 1e17 wei per chip
+    unitMultiplier = "100000000000000000"; // 1e17
     } else if (allowedLsp7 && inputToken === allowedLsp7) {
         tokenAddress = allowedLsp7;
         // 1 chip = 1000 WBSTR; with 18 decimals this is 1000 * 1e18 = 1e21 smallest units per chip
@@ -5424,7 +5424,7 @@ try {
                 if (!allowedWbstr && (!tokenAddress || tokenAddress === ethers.ZeroAddress.toLowerCase())) {
                     console.warn('[startAiGame] WBSTR token not configured; defaulting to ZeroAddress. Configure ALLOWED_LSP7_TOKEN or deployments file.');
                 }
-                const defaultLyxMultiplier = normalizeMultiplier(cfg.lyxMultiplier) || '10000000000000000';
+                const defaultLyxMultiplier = normalizeMultiplier(cfg.lyxMultiplier) || '100000000000000000';
                 const defaultLsp7Multiplier = normalizeMultiplier(cfg.lsp7Multiplier) || '1000000000000000000000';
                 let effectiveUnitMultiplier = normalizeMultiplier(unitMultiplierRaw);
                 if (!effectiveUnitMultiplier) {

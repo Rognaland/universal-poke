@@ -305,11 +305,11 @@
                             <input id="setup-name" type="text" maxlength="40" placeholder="e.g., Friday Night Poker" title="Public table name, visible in the list" />
                             <div class="hint">Shown in the public table list (e.g., "Friday Night").</div>
                         </div>
-                        <div class="row">
+                        <div class="row" style="display: none;">
                             <label for="setup-gametype">Game type</label>
                             <select id="setup-gametype" title="Choose Cash, Sit & Go, or Scheduled Game">
                                 <option value="cash">Cash Game</option>
-                                <option value="sng">Sit & Go</option>
+                                <option value="sng" selected>Sit & Go</option>
                                 <option value="scheduled">Scheduled Game (at a time)</option>
                             </select>
                             <div class="hint">Cash: join/leave anytime. SNG: starts when the table is full. Scheduled: starts at the selected time (if enough players).</div>
@@ -336,8 +336,8 @@
                         <div class="row">
                             <label for="setup-token">Token</label>
                             <select id="setup-token" title="Choose chip currency">
-                                <option value="LYX">LYX (1 LYX = 100 chips)</option>
-                                <option value="WBSTR">WBSTR (1 WBSTR = 0.01 chips)</option>
+                                <option value="LYX">LYX (1 LYX = 10 chips)</option>
+                                <option value="WBSTR">WBSTR (1 WBSTR = 0.001 chips)</option>
                             </select>
                         </div>
                         <div class="row">
@@ -350,14 +350,14 @@
                             <input id="setup-minchips" type="number" min="0" step="1" value="0" title="Minimum chips required to sit in" />
                             <div class="hint">Players must have at least this many chips deposited to sit in.</div>
                         </div>
-                        <div class="row" id="row-starttime" style="display:none;">
+                        <!-- <div class="row" id="row-starttime" style="display:none;">
                             <label for="setup-date">Start date</label>
                             <input id="setup-date" type="date" title="Start date (Scheduled only)" />
                             <label for="setup-time" style="margin-left:12px;">Time</label>
                             <input id="setup-time" type="time" title="Start time (Scheduled only)" />
                             <div class="hint" style="width:100%">Used only for "Scheduled Game" — starts automatically at the chosen time if enough players.</div>
                             <div id="tz-hint" class="hint" style="width:100%"></div>
-                        </div>
+                        </div> -->
                         <div class="actions row">
                             <button id="btn-create-table" class="control-btn">Create public table</button>
                             <span id="create-table-result" class="hint" style="margin-left:8px;"></span>
