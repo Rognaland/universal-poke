@@ -1056,12 +1056,67 @@ exports.onPlayerCreated = onDocumentCreated("tables/{tableId}/players/{playerId}
         console.warn('onPlayerCreated error', e && e.message);
     }
 });
-exports.onPlayerDeleted = onDocumentDeleted("tables/{tableId}/players/{playerId}", async (event) => {
+exports.onPlayerDeleted = onDocumentDeleted({
+    document: "tables/{tableId}/players/{playerId}",
+    secrets: [RPC_URL, PRIVATE_KEY, PRIZE_DISTRIBUTOR, GAME_VAULT, ALLOWED_LSP7_TOKEN, LYX_UNIT_MULTIPLIER, LSP7_UNIT_MULTIPLIER]
+}, async (event) => {
     try {
         const { tableId, playerId } = event.params;
         const tableRef = db.doc(`tables/${tableId}`);
         await tableRef.set({ playerCount: FieldValue.increment(-1), lastActivityAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
         
+        // Refund logic: Check if player left a balance in the vault (e.g. left waiting room after paying)
+        // Do this for ALL games (AI and Multiplayer).
+        // We need the player's address which was in the deleted doc.
+        // Note: In v2 onDocumentDeleted, event.data is the QueryDocumentSnapshot of the deleted doc.
+        const deletedData = event.data ? event.data.data() : null;
+        const playerAddress = deletedData ? deletedData.address : null;
+
+        if (playerAddress) {
+            console.log(`[onPlayerDeleted] Checking for refund for player ${playerAddress} on table ${tableId}`);
+            try {
+                const CFG = getCfg();
+                const rpcUrl = process.env.RPC_URL || CFG.rpcUrl || 'http://127.0.0.1:8545';
+                const provider = new ethers.JsonRpcProvider(rpcUrl);
+                const vaultAbi = loadVaultAbi();
+
+                if (vaultAbi && CFG.gameVault) {
+                    const vault = new ethers.Contract(CFG.gameVault, vaultAbi, provider);
+                    const onchainTableId = deriveOnchainTableId(tableId);
+
+                    // Need to check both LYX and Token if we don't know which one
+                    // We'll try to guess from table data if possible, or check both.
+                    const tableSnap = await tableRef.get();
+                    const tableData = tableSnap.data() || {};
+                    const tokenAddress = tableData.tokenAddress || ethers.ZeroAddress;
+                    const normalizedToken = normalizeAddress(tokenAddress);
+                    const normalizedPlayer = normalizeAddress(playerAddress);
+
+                    let balance = 0n;
+                    try {
+                        const bal = await vault.balanceOf(onchainTableId, normalizedPlayer, normalizedToken);
+                        balance = BigInt(bal.toString());
+                    } catch (e) {
+                        console.warn(`[onPlayerDeleted] Failed to check vault balance:`, e.message);
+                    }
+
+                    if (balance > 0n) {
+                        console.log(`[onPlayerDeleted] Found balance ${balance.toString()} for leaving player. Authorizing refund.`);
+                        await authorizePayoutsOnChain([{
+                            address: normalizedPlayer,
+                            tokenAddress: normalizedToken,
+                            amount: balance,
+                            tableId: tableId
+                        }]);
+                    } else {
+                        console.log(`[onPlayerDeleted] No balance found for leaving player.`);
+                    }
+                }
+            } catch (refundErr) {
+                console.error(`[onPlayerDeleted] Refund check failed:`, refundErr);
+            }
+        }
+
         // CRITICAL: For AI games, check if human player left - if so, end the match immediately
         const tableSnap = await tableRef.get();
         const tableData = tableSnap.data() || {};
@@ -4479,10 +4534,34 @@ async function settleEndOfHand(tableId, game) {
                 console.log(`[settleEndOfHand] - localEligiblePlayers.length: ${localEligiblePlayers.length}`);
                 console.log(`[settleEndOfHand] - isPrivateAi: ${isPrivateAi}`);
                 console.log(`[settleEndOfHand] - shouldStartNewHand: ${shouldStartNewHand}`);
-                if (seatedPlayersSnap.size >= 2 && eligiblePlayers.length < 2) {
+
+                // Check for Last Man Standing (Multiplayer Game Over)
+                // If we had players initially (seatedPlayersSnap.size >= 2) but now only 1 eligible left, that player wins.
+                // Note: isPrivateAi checks above handle the AI case. This is for multiplayer.
+                if (seatedPlayersSnap.size >= 2 && eligiblePlayers.length === 1) {
+                    const winnerId = eligiblePlayers[0];
+                    console.log(`[settleEndOfHand] 🏆 GAME OVER! Player ${winnerId} is the last man standing.`);
+
+                    // Mark table as finished
+                    try {
+                        await tableRef.update({
+                            status: 'finished',
+                            endedAt: FieldValue.serverTimestamp(),
+                            winnerId: winnerId
+                        });
+
+                        // Optional: You could trigger a full withdrawal for the winner here,
+                        // but "withdrawFullVaultBalance" via the "Claim" button is safer/standard.
+                        console.log(`[settleEndOfHand] Table ${tableId} marked as finished.`);
+                    } catch (endErr) {
+                        console.error(`[settleEndOfHand] Failed to mark table finished:`, endErr);
+                    }
+                } else if (seatedPlayersSnap.size >= 2 && eligiblePlayers.length < 1) {
+                    console.log(`[settleEndOfHand] No eligible players left with chips.`);
+                    // Maybe mark finished?
+                } else {
                     console.log(`[settleEndOfHand] Seated count met but only ${eligiblePlayers.length} player(s) have chips. Awaiting buy-ins or top-ups.`);
                 }
-                // Potential future hook: handle end-of-table or tournament cleanup when players < 2
             }
         }
     } else {

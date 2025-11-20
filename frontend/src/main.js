@@ -1164,6 +1164,7 @@ const initApp = async () => {
     const chatInput = document.getElementById('chat-input');
     const chatSendBtn = document.getElementById('btn-chat-send');
     const startTableBtn = document.getElementById('btn-start-table');
+    const payBuyInBtn = document.getElementById('btn-pay-buyin');
     const leaveWaitingBtn = document.getElementById('btn-leave-waiting');
     
     // Avatar cache for waiting-room (address -> avatar URL|null)
@@ -2851,14 +2852,25 @@ const initApp = async () => {
                 waitingTableMetaEl.textContent = `${typeLbl} • ${t.sb}/${t.bb} • stack ${t.stack}${buyinLbl}${minLbl}${startLbl} • ${t.players||0}/${cap} players${statusLbl}${autoLbl}`;
             }
 
+            // Determine if I have paid - need to check players list, but we can default to false here and update in player sub
+            let iHavePaid = false;
+            let iAmSeated = false;
+            let myPlayerStatus = null;
+
             if (startTableBtn) {
                 if (autoStart) {
                     startTableBtn.style.display = 'none';
                     startTableBtn.disabled = true;
                 } else {
+                    // Host can start if waiting. If starting, button disabled or hidden
                     const showForHost = !!currentWaiting.isHost;
-                    startTableBtn.style.display = showForHost ? 'inline-block' : 'none';
-                    startTableBtn.disabled = !showForHost;
+                    if (statusLower === 'waiting' && showForHost) {
+                        startTableBtn.style.display = 'inline-block';
+                        startTableBtn.disabled = false;
+                        startTableBtn.textContent = 'Start Game';
+                    } else {
+                        startTableBtn.style.display = 'none';
+                    }
                 }
             }
 
@@ -2888,23 +2900,63 @@ const initApp = async () => {
         try { unsub.waitingPlayers = subscribeTablePlayers(tableId, async (rows) => {
             if (!waitingPlayersEl) return;
             const cap = Math.max(2, Math.min(9, rows?.cap || 9));
+            let myPlayer = null;
+
             // Render players with avatars
             const html = await Promise.all((rows||[]).map(async (p) => {
+                if (p.id === myDocId) myPlayer = p;
                 const img = await fetchAvatarForAddress(p.address || '');
                 const role = p.role === 'host' ? 'Host' : (p.role === 'bot' ? 'Bot' : 'Player');
                 const you = (p.id === myDocId) ? ' • you' : '';
                 const av = img ? `<img src="${img}" alt="" width="20" height="20" style="border-radius:50%;margin-right:6px;" />` : '';
-                return `<div class="list-item"><div style="display:flex;align-items:center;gap:6px;">${av}<b>${p.name||'Player'}</b><span class="hint">(${role}${you})</span></div><div>${p.status||''}</div></div>`;
+
+                // Show status clearly
+                let statusDisplay = p.status || '';
+                if (statusDisplay === 'paid') statusDisplay = '<span style="color:#4ade80">PAID</span>';
+                if (statusDisplay === 'seated') statusDisplay = '<span style="color:#fbbf24">SEATED</span>';
+
+                return `<div class="list-item"><div style="display:flex;align-items:center;gap:6px;">${av}<b>${p.name||'Player'}</b><span class="hint">(${role}${you})</span></div><div>${statusDisplay}</div></div>`;
             }));
             waitingPlayersEl.innerHTML = html.join('');
-            if (startTableBtn) {
+
+            // Update Buy-In Button visibility
+            if (payBuyInBtn) {
+                // Need to get table status again or store it? currentWaiting.lastStatus holds it
+                const tableStatus = currentWaiting.lastStatus || 'waiting';
                 const autoStart = String(currentWaiting.mode || '').toLowerCase() === 'ai';
-                if (autoStart) {
-                    startTableBtn.style.display = 'none';
-                    startTableBtn.disabled = true;
+
+                if (!autoStart && tableStatus === 'starting' && myPlayer && myPlayer.status !== 'paid') {
+                    payBuyInBtn.style.display = 'inline-block';
+                    payBuyInBtn.textContent = `Pay Buy-in`;
+                    payBuyInBtn.onclick = async () => {
+                        payBuyInBtn.disabled = true;
+                        payBuyInBtn.textContent = 'Processing...';
+                        try {
+                            // Fetch table data to get buyin amount and token
+                            const tDoc = await getTable(tableId);
+                            if (!tDoc) throw new Error('Table not found');
+
+                            const buyin = Number(tDoc.buyin || 0);
+                            const token = tDoc.tokenAddress || ZERO_ADDRESS;
+                            const unitMult = tDoc.unitMultiplier; // Can be 'auto'
+
+                            setMessage(`Initiating buy-in payment of ${buyin} chips...`);
+
+                            if (token === ZERO_ADDRESS) {
+                                await depositLyx(tableId, buyin, unitMult);
+                            } else {
+                                await depositWbstr(tableId, buyin, unitMult, token);
+                            }
+                            setMessage('Payment sent! Waiting for confirmation...');
+                        } catch (e) {
+                            console.error(e);
+                            alert(e.message);
+                            payBuyInBtn.disabled = false;
+                            payBuyInBtn.textContent = 'Pay Buy-in';
+                        }
+                    };
                 } else {
-                    startTableBtn.style.display = isHost ? 'inline-block' : 'none';
-                    startTableBtn.disabled = !isHost;
+                    payBuyInBtn.style.display = 'none';
                 }
             }
         }); } catch (_) {}
