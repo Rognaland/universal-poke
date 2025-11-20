@@ -4542,19 +4542,94 @@ async function settleEndOfHand(tableId, game) {
                     const winnerId = eligiblePlayers[0];
                     console.log(`[settleEndOfHand] 🏆 GAME OVER! Player ${winnerId} is the last man standing.`);
 
-                    // Mark table as finished
                     try {
+                        // 1. Mark table as finished
                         await tableRef.update({
                             status: 'finished',
                             endedAt: FieldValue.serverTimestamp(),
                             winnerId: winnerId
                         });
-
-                        // Optional: You could trigger a full withdrawal for the winner here,
-                        // but "withdrawFullVaultBalance" via the "Claim" button is safer/standard.
                         console.log(`[settleEndOfHand] Table ${tableId} marked as finished.`);
+
+                        // 2. Move all remaining funds from losers to the winner in the GameVault
+                        // This ensures "Winner Takes All" and allows the winner to withdraw the total pot.
+                        if (authWallet) {
+                            const winnerDoc = await db.doc(`tables/${tableId}/players/${winnerId}`).get();
+                            const winnerAddress = winnerDoc.exists ? winnerDoc.data().address : null;
+
+                            if (winnerAddress && ethers.isAddress(winnerAddress)) {
+                                const vaultAbi = loadVaultAbi();
+                                if (vaultAbi) {
+                                    const vault = new ethers.Contract(CFG.gameVault, vaultAbi, authWallet);
+                                    const onchainTableId = deriveOnchainTableId(tableId);
+                                    const tokenAddress = game.tokenAddress || ethers.ZeroAddress;
+                                    const normalizedToken = normalizeAddress(tokenAddress);
+
+                                    // Iterate over all players to find losers with balances
+                                    const allPlayersSnap = await db.collection(`tables/${tableId}/players`).get();
+                                    for (const pDoc of allPlayersSnap.docs) {
+                                        if (pDoc.id === winnerId) continue; // Skip winner
+
+                                        const pData = pDoc.data();
+                                        const loserAddress = pData.address;
+                                        if (!loserAddress || !ethers.isAddress(loserAddress)) continue;
+
+                                        try {
+                                            // Check balance
+                                            let loserBalance = 0n;
+                                            if (typeof vault['balanceOf(uint256,address,address)'] === 'function') {
+                                                loserBalance = await vault['balanceOf(uint256,address,address)'](onchainTableId, loserAddress, normalizedToken);
+                                            } else {
+                                                loserBalance = await vault.balanceOf(onchainTableId, loserAddress, normalizedToken);
+                                            }
+                                            loserBalance = BigInt(loserBalance.toString());
+
+                                            if (loserBalance > 0n) {
+                                                console.log(`[settleEndOfHand] Moving ${loserBalance.toString()} from Loser ${loserAddress} to Winner ${winnerAddress}`);
+                                                const txMove = await vault.moveBalance(onchainTableId, normalizedToken, loserAddress, winnerAddress, loserBalance);
+                                                await txMove.wait();
+                                                console.log(`[settleEndOfHand] Moved funds tx: ${txMove.hash}`);
+                                            }
+                                        } catch (moveErr) {
+                                            console.error(`[settleEndOfHand] Failed to move balance from ${loserAddress}:`, moveErr);
+                                        }
+                                    }
+
+                                    // Authorize winner to withdraw EVERYTHING (Winner Takes All)
+                                    try {
+                                        // Get winner's total balance (original stake + winnings)
+                                        let winnerTotalBalance = 0n;
+                                        if (typeof vault['balanceOf(uint256,address,address)'] === 'function') {
+                                            winnerTotalBalance = await vault['balanceOf(uint256,address,address)'](onchainTableId, winnerAddress, normalizedToken);
+                                        } else {
+                                            winnerTotalBalance = await vault.balanceOf(onchainTableId, winnerAddress, normalizedToken);
+                                        }
+                                        winnerTotalBalance = BigInt(winnerTotalBalance.toString());
+
+                                        if (winnerTotalBalance > 0n) {
+                                            console.log(`[settleEndOfHand] Authorizing withdrawal for Winner ${winnerAddress}, Total: ${winnerTotalBalance.toString()}`);
+                                            // We need to call authorizePayoutsOnChain which uses PrizeDistributor
+                                            // Note: authorizePayoutsOnChain is a global function in this file
+                                            await authorizePayoutsOnChain([{
+                                                address: winnerAddress,
+                                                tokenAddress: tokenAddress, // Using original token address from game state
+                                                amount: winnerTotalBalance,
+                                                tableId: tableId
+                                            }]);
+                                        }
+                                    } catch (authErr) {
+                                        console.error(`[settleEndOfHand] Failed to authorize winner withdrawal:`, authErr);
+                                    }
+                                }
+                            } else {
+                                console.warn(`[settleEndOfHand] Winner ${winnerId} has no valid address. Cannot move funds.`);
+                            }
+                        } else {
+                            console.warn(`[settleEndOfHand] No authWallet available. Cannot move funds on-chain.`);
+                        }
+
                     } catch (endErr) {
-                        console.error(`[settleEndOfHand] Failed to mark table finished:`, endErr);
+                        console.error(`[settleEndOfHand] Failed to finalize table:`, endErr);
                     }
                 } else if (seatedPlayersSnap.size >= 2 && eligiblePlayers.length < 1) {
                     console.log(`[settleEndOfHand] No eligible players left with chips.`);

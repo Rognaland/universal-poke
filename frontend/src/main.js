@@ -1131,6 +1131,7 @@ const initApp = async () => {
     const postLoginMenu = document.getElementById('postlogin-menu');
     const backToMenuBtn = document.getElementById('btn-back-menu');
     const logoutBtn = document.getElementById('btn-logout');
+    const panelMultiplayer = document.getElementById('panel-multiplayer');
     const panelJoin = document.getElementById('panel-join');
     const panelWaiting = document.getElementById('panel-waiting');
     const panelAI = document.getElementById('panel-ai');
@@ -1316,6 +1317,7 @@ const initApp = async () => {
         }
 
     function hideAllPanels() {
+        if (panelMultiplayer) panelMultiplayer.style.display = 'none';
         if (panelJoin) panelJoin.style.display = 'none';
         if (setupPanel) setupPanel.style.display = 'none';
         if (panelBoards) panelBoards.style.display = 'none';
@@ -2525,6 +2527,11 @@ const initApp = async () => {
             if (sel) { sel.value = (name === 'organize-sng') ? 'sng' : (name === 'organize-scheduled' ? 'scheduled' : 'cash'); sel.dispatchEvent(new Event('change', { bubbles: true })); }
             return;
         }
+        if (name === 'multiplayer' && panelMultiplayer) {
+            document.body.classList.remove('has-setup');
+            panelMultiplayer.style.display = 'block';
+            return;
+        }
         if (name === 'ai' && panelAI) { 
             document.body.classList.remove('has-setup'); 
             panelAI.style.display = 'block'; 
@@ -2885,6 +2892,12 @@ const initApp = async () => {
                 }
                 if (statusLower === 'active') {
                     setMessage('Game is live! Taking you to the table…');
+                }
+            }
+            // For multiplayer, notify when game is starting (buy-in needed)
+            if (!autoStart && currentWaiting.tableId === tableId && previousStatus !== statusLower) {
+                if (statusLower === 'starting') {
+                    setMessage('Game starting! Please pay the buy-in to take your seat.');
                 }
             }
 
@@ -3356,10 +3369,18 @@ const initApp = async () => {
     }
 
     // Menu routing
-    document.querySelectorAll('#postlogin-menu .menu-btn').forEach(btn => {
-        btn.addEventListener('click', () => { const t = btn.getAttribute('data-target'); if (t) openPanel(t); });
-    });
-    
+    const bindMenuButtons = (container) => {
+        if (!container) return;
+        container.querySelectorAll('.menu-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const t = btn.getAttribute('data-target');
+                if (t) openPanel(t);
+            });
+        });
+    };
+    bindMenuButtons(document.getElementById('postlogin-menu'));
+    bindMenuButtons(document.getElementById('panel-multiplayer'));
+
     // Panel back buttons - return to main menu
     document.querySelectorAll('.panel-back-btn').forEach(btn => {
         btn.addEventListener('click', () => {

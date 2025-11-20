@@ -2714,7 +2714,7 @@ select:focus {
 
 .menu-token-card,
 .menu-btn {
-    animation: fadeInUp 0.5s ease-out backwards;
+    /* animation: fadeInUp 0.5s ease-out backwards; */
 }
 
 .menu-btn:nth-child(1) { animation-delay: 0.1s; }
