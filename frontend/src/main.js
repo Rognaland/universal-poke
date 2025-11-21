@@ -2876,6 +2876,12 @@ const initApp = async () => {
                 }
             }
 
+            // Multiplayer "Starting" - show payment button if needed
+            if (!autoStart && currentWaiting.tableId === tableId && statusLower === 'starting') {
+                // Will be handled in waitingPlayers subscription, but update message here
+                setMessage('Game is starting! Please pay the buy-in to reserve your seat.');
+            }
+
             // Transition to game when table becomes active
             if (statusLower === 'active' && currentWaiting.tableId === tableId && !currentWaiting.enteredGame) {
                 currentWaiting.enteredGame = true;
@@ -2888,23 +2894,88 @@ const initApp = async () => {
         try { unsub.waitingPlayers = subscribeTablePlayers(tableId, async (rows) => {
             if (!waitingPlayersEl) return;
             const cap = Math.max(2, Math.min(9, rows?.cap || 9));
+
+            // Check if current user needs to pay
+            const myPlayer = rows.find(p => p.id === myDocId);
+            const needsToPay = currentWaiting.lastStatus === 'starting' && myPlayer && myPlayer.status !== 'paid';
+            const tableIsStarting = currentWaiting.lastStatus === 'starting';
+
             // Render players with avatars
             const html = await Promise.all((rows||[]).map(async (p) => {
                 const img = await fetchAvatarForAddress(p.address || '');
                 const role = p.role === 'host' ? 'Host' : (p.role === 'bot' ? 'Bot' : 'Player');
                 const you = (p.id === myDocId) ? ' • you' : '';
                 const av = img ? `<img src="${img}" alt="" width="20" height="20" style="border-radius:50%;margin-right:6px;" />` : '';
-                return `<div class="list-item"><div style="display:flex;align-items:center;gap:6px;">${av}<b>${p.name||'Player'}</b><span class="hint">(${role}${you})</span></div><div>${p.status||''}</div></div>`;
+
+                // Status badge logic
+                let statusBadge = p.status || '';
+                if (tableIsStarting) {
+                    if (p.status === 'paid') {
+                        statusBadge = '<span style="color: #4CAF50; font-weight: bold;">✓ PAID</span>';
+                    } else {
+                        statusBadge = '<span style="color: #FFA000;">WAITING PAYMENT</span>';
+                    }
+                }
+
+                // If it's me and I need to pay, show button
+                let actionHtml = `<div>${statusBadge}</div>`;
+                if (p.id === myDocId && needsToPay) {
+                    actionHtml = `<div><button id="btn-pay-buyin" class="control-btn primary small">PAY BUY-IN</button></div>`;
+                }
+
+                return `<div class="list-item"><div style="display:flex;align-items:center;gap:6px;">${av}<b>${p.name||'Player'}</b><span class="hint">(${role}${you})</span></div>${actionHtml}</div>`;
             }));
+
             waitingPlayersEl.innerHTML = html.join('');
+
+            // Attach pay button listener if rendered
+            const payBtn = document.getElementById('btn-pay-buyin');
+            if (payBtn) {
+                payBtn.onclick = async () => {
+                    try {
+                        payBtn.disabled = true;
+                        payBtn.textContent = 'Processing...';
+
+                        const tableData = await getTable(tableId);
+                        if (!tableData) throw new Error('Table data not found');
+
+                        const token = tableData.tokenAddress || ZERO_ADDRESS;
+                        const buyin = Number(tableData.buyin || 0);
+                        const unitMultiplier = tableData.unitMultiplier; // string
+
+                        if (buyin <= 0) {
+                            setMessage('No buy-in required? Wait for game start.');
+                            return;
+                        }
+
+                        if (token === ZERO_ADDRESS) {
+                            // LYX
+                            await depositLyx(tableId, buyin, unitMultiplier);
+                        } else {
+                            // WBSTR / LSP7
+                            await depositWbstr(tableId, buyin, unitMultiplier, token);
+                        }
+
+                        setMessage('Payment sent! Waiting for confirmation...');
+                    } catch (err) {
+                        console.error('Buy-in failed:', err);
+                        setMessage(`Payment failed: ${err.message}`);
+                        payBtn.disabled = false;
+                        payBtn.textContent = 'PAY BUY-IN';
+                    }
+                };
+            }
+
             if (startTableBtn) {
                 const autoStart = String(currentWaiting.mode || '').toLowerCase() === 'ai';
                 if (autoStart) {
                     startTableBtn.style.display = 'none';
                     startTableBtn.disabled = true;
                 } else {
-                    startTableBtn.style.display = isHost ? 'inline-block' : 'none';
-                    startTableBtn.disabled = !isHost;
+                    // Host logic: hide start button if already starting/active
+                    const showForHost = !!isHost && currentWaiting.lastStatus === 'waiting';
+                    startTableBtn.style.display = showForHost ? 'inline-block' : 'none';
+                    startTableBtn.disabled = !showForHost;
                 }
             }
         }); } catch (_) {}
@@ -2950,6 +3021,12 @@ const initApp = async () => {
         catch (e) { setMessage(e?.message || String(e)); }
     };
     if (refreshTablesBtn) refreshTablesBtn.onclick = () => startJoinRealtime();
+
+    // Create SNG Shortcut
+    const createSngBtn = document.getElementById('btn-create-sng');
+    if (createSngBtn) {
+        createSngBtn.onclick = () => openPanel('organize-sng');
+    }
 
     // AI: simple create private table with bots
     const aiBotsInput = document.getElementById('ai-bots');

@@ -1059,12 +1059,53 @@ exports.onPlayerCreated = onDocumentCreated("tables/{tableId}/players/{playerId}
 exports.onPlayerDeleted = onDocumentDeleted("tables/{tableId}/players/{playerId}", async (event) => {
     try {
         const { tableId, playerId } = event.params;
+        const previousData = event.data.before.data() || {};
         const tableRef = db.doc(`tables/${tableId}`);
         await tableRef.set({ playerCount: FieldValue.increment(-1), lastActivityAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() }, { merge: true });
         
-        // CRITICAL: For AI games, check if human player left - if so, end the match immediately
         const tableSnap = await tableRef.get();
         const tableData = tableSnap.data() || {};
+        const status = tableData.status || 'unknown';
+
+        // REFUND LOGIC: If player leaves a waiting/starting lobby, check for deposited funds and authorize refund
+        if (status === 'waiting' || status === 'starting') {
+            const playerAddress = previousData.address;
+            if (playerAddress) {
+                console.log(`[onPlayerDeleted] Player ${playerId} (${playerAddress}) left waiting table ${tableId}. Checking for refund...`);
+                const CFG = getCfg();
+                if (CFG.rpcUrl && CFG.gameVault) {
+                    try {
+                        const provider = new ethers.JsonRpcProvider(CFG.rpcUrl);
+                        const vaultAbi = loadVaultAbi();
+                        if (vaultAbi) {
+                            const vault = new ethers.Contract(CFG.gameVault, vaultAbi, provider);
+                            const onchainTableId = deriveOnchainTableId(tableId);
+                            const token = tableData.tokenAddress || ethers.ZeroAddress;
+                            let balance = 0n;
+                            try {
+                                if (typeof vault['balanceOf(uint256,address,address)'] === 'function') {
+                                     balance = await vault['balanceOf(uint256,address,address)'](onchainTableId, playerAddress, token);
+                                } else {
+                                     balance = await vault.balanceOf(onchainTableId, playerAddress, token);
+                                }
+                            } catch (err) { console.warn(`[onPlayerDeleted] Balance check failed:`, err.message); }
+
+                            if (BigInt(balance) > 0n) {
+                                console.log(`[onPlayerDeleted] Found balance ${balance.toString()} for leaving player. Authorizing refund...`);
+                                await authorizePayoutsOnChain([{
+                                    address: playerAddress,
+                                    tokenAddress: token,
+                                    amount: balance,
+                                    tableId: tableId
+                                }]);
+                            }
+                        }
+                    } catch (err) { console.error(`[onPlayerDeleted] Refund check error:`, err); }
+                }
+            }
+        }
+
+        // CRITICAL: For AI games, check if human player left - if so, end the match immediately
         const isAiGame = tableData.mode === 'ai' && tableData.isPrivate;
         const isActive = tableData.status === 'active';
         
@@ -4479,10 +4520,126 @@ async function settleEndOfHand(tableId, game) {
                 console.log(`[settleEndOfHand] - localEligiblePlayers.length: ${localEligiblePlayers.length}`);
                 console.log(`[settleEndOfHand] - isPrivateAi: ${isPrivateAi}`);
                 console.log(`[settleEndOfHand] - shouldStartNewHand: ${shouldStartNewHand}`);
-                if (seatedPlayersSnap.size >= 2 && eligiblePlayers.length < 2) {
+
+                if (isTournament && eligiblePlayers.length === 1) {
+                    const winnerPid = eligiblePlayers[0];
+                    console.log(`[settleEndOfHand] 🏆 TOURNAMENT WINNER FOUND: ${winnerPid}`);
+
+                    try {
+                        // 1. Identify winner and losers
+                        const winnerDoc = tablePlayerDocs.get(winnerPid) || {};
+                        const winnerAddress = winnerDoc.address || preSettlePlayers[winnerPid]?.address;
+
+                        if (!winnerAddress) {
+                            console.error(`[settleEndOfHand] ❌ Cannot pay tournament winner ${winnerPid} - missing address`);
+                        } else {
+                            const losers = [];
+                            // Iterate ALL players ever seated to find losers
+                            // (We need to check all docs in tablePlayerDocs + preSettlePlayers to catch everyone)
+                            const allPids = new Set([...tablePlayerDocs.keys(), ...Object.keys(preSettlePlayers || {})]);
+
+                            allPids.forEach(pid => {
+                                if (pid === winnerPid) return;
+                                const doc = tablePlayerDocs.get(pid);
+                                const pre = preSettlePlayers[pid];
+                                const addr = (doc && doc.address) || (pre && pre.address);
+                                // Only consider players with valid addresses who are NOT the winner
+                                if (addr && addr.toLowerCase() !== winnerAddress.toLowerCase()) {
+                                    losers.push({ pid, address: addr });
+                                }
+                            });
+
+                            console.log(`[settleEndOfHand] Found ${losers.length} losers to sweep funds from.`);
+
+                            // 2. Setup Vault contract
+                            const vaultAbi = loadVaultAbi();
+                            if (vaultAbi && authWallet) {
+                                const vault = new ethers.Contract(CFG.gameVault, vaultAbi, authWallet);
+                                const onchainTableId = deriveOnchainTableId(tableId);
+                                const normalizedToken = game.tokenAddress ? normalizeAddress(game.tokenAddress) : ethers.ZeroAddress;
+
+                                // 3. Sweep loser balances to winner
+                                const sweepPromises = [];
+                                for (const loser of losers) {
+                                    sweepPromises.push((async () => {
+                                        try {
+                                            let loserBalance = 0n;
+                                            try {
+                                                if (typeof vault['balanceOf(uint256,address,address)'] === 'function') {
+                                                    loserBalance = await vault['balanceOf(uint256,address,address)'](onchainTableId, loser.address, normalizedToken);
+                                                } else {
+                                                    loserBalance = await vault.balanceOf(onchainTableId, loser.address, normalizedToken);
+                                                }
+                                            } catch (err) {
+                                                console.warn(`[settleEndOfHand] Failed to read balance for loser ${loser.pid}:`, err.message);
+                                                return;
+                                            }
+                                            loserBalance = BigInt(loserBalance.toString());
+                                            if (loserBalance > 0n) {
+                                                console.log(`[settleEndOfHand] Sweeping ${loserBalance.toString()} from ${loser.pid} to winner.`);
+                                                // Send transaction and wait concurrently
+                                                const tx = await vault.moveBalance(onchainTableId, normalizedToken, loser.address, winnerAddress, loserBalance);
+                                                return tx.wait();
+                                            }
+                                        } catch (sweepErr) {
+                                            console.error(`[settleEndOfHand] Failed to sweep from ${loser.pid}:`, sweepErr.message);
+                                        }
+                                    })());
+                                }
+                                await Promise.all(sweepPromises);
+
+                                // 4. Get final winner balance
+                                let totalWinnings = 0n;
+                                try {
+                                    if (typeof vault['balanceOf(uint256,address,address)'] === 'function') {
+                                        totalWinnings = await vault['balanceOf(uint256,address,address)'](onchainTableId, winnerAddress, normalizedToken);
+                                    } else {
+                                        totalWinnings = await vault.balanceOf(onchainTableId, winnerAddress, normalizedToken);
+                                    }
+                                } catch (err) {
+                                    console.error(`[settleEndOfHand] Failed to read winner final balance:`, err.message);
+                                }
+
+                                totalWinnings = BigInt(totalWinnings.toString());
+
+                                // 5. Authorize withdrawal for winner
+                                if (totalWinnings > 0n && CFG.prizeDistributor) {
+                                    console.log(`[settleEndOfHand] Authorizing winner withdrawal: ${totalWinnings.toString()}`);
+                                    const pd = new ethers.Contract(CFG.prizeDistributor, PRIZE_DISTRIBUTOR_ABI, authWallet);
+                                    const authTx = await pd.authorizePayout(winnerAddress, normalizedToken, totalWinnings);
+                                    const authRc = await authTx.wait();
+
+                                    // Persist authorization
+                                    await db.collection('payouts').doc(authTx.hash).set({
+                                        txHash: authTx.hash,
+                                        type: 'tournament_win',
+                                        tableId: String(tableId),
+                                        player: winnerAddress,
+                                        token: normalizedToken,
+                                        amount: String(totalWinnings),
+                                        status: 'authorized',
+                                        receipt: serializeReceipt(authRc),
+                                        createdAt: FieldValue.serverTimestamp(),
+                                    }, { merge: true });
+                                }
+                            } else {
+                                console.error(`[settleEndOfHand] Vault ABI or AuthWallet missing, cannot process tournament win.`);
+                            }
+                        }
+
+                        // 6. Mark table finished
+                        await tableRef.set({
+                            status: 'finished',
+                            endedAt: FieldValue.serverTimestamp(),
+                            winnerPid
+                        }, { merge: true });
+
+                    } catch (err) {
+                        console.error(`[settleEndOfHand] Error processing tournament win:`, err);
+                    }
+                } else if (seatedPlayersSnap.size >= 2 && eligiblePlayers.length < 2) {
                     console.log(`[settleEndOfHand] Seated count met but only ${eligiblePlayers.length} player(s) have chips. Awaiting buy-ins or top-ups.`);
                 }
-                // Potential future hook: handle end-of-table or tournament cleanup when players < 2
             }
         }
     } else {
@@ -5089,21 +5246,28 @@ exports.verifyStartingTables = onSchedule({ schedule: 'every 1 minutes', secrets
         if (snap.empty) return;
         const now = Date.now();
         const vault = getVaultContract();
+        const batch = db.batch();
+        let batchCount = 0;
+
         for (const docSnap of snap.docs) {
             const t = docSnap.data() || {};
             const tableId = docSnap.id;
             const startingAtMs = t.startingAt && typeof t.startingAt.toMillis === 'function' ? t.startingAt.toMillis() : (t.startingAt ? Date.parse(t.startingAt) : 0);
             const windowSec = Number(t.paymentWindowSec || 60);
             if (!startingAtMs) continue;
-            if (now < startingAtMs + windowSec * 1000) continue; // still waiting
 
-            // Time window expired — check which players paid
+            // Always check balances first to provide quick feedback
             const playersCol = db.collection(`tables/${tableId}/players`);
             const playersSnap = await playersCol.get();
             const paidPlayers = [];
             const unpaidPlayers = [];
+
             for (const pDoc of playersSnap.docs) {
                 const pd = pDoc.data() || {};
+                if (pd.status === 'paid') {
+                    paidPlayers.push({ doc: pDoc });
+                    continue;
+                }
                 const addr = (pd.address || '').toLowerCase();
                 if (!addr) {
                     unpaidPlayers.push(pDoc);
@@ -5111,50 +5275,60 @@ exports.verifyStartingTables = onSchedule({ schedule: 'every 1 minutes', secrets
                 }
                 let balance = 0n;
                 try {
-                    if (vault && typeof vault.balanceOf === 'function') {
-                        const res = await vault.balanceOf(Number(tableId), addr);
+                    const onchainTableId = deriveOnchainTableId(tableId);
+                    const token = t.tokenAddress || ethers.ZeroAddress;
+                    if (vault) {
+                        let res;
+                        if (typeof vault['balanceOf(uint256,address,address)'] === 'function') {
+                             res = await vault['balanceOf(uint256,address,address)'](onchainTableId, addr, token);
+                        } else {
+                             res = await vault.balanceOf(onchainTableId, addr);
+                        }
                         balance = BigInt(res.toString ? res.toString() : res || 0);
                     }
-                } catch (e) {
-                    console.warn('Vault balanceOf error', e);
-                }
+                } catch (e) { console.warn('Vault balanceOf error', e); }
+
                 const unitMultiplier = BigInt(t.unitMultiplier || 1);
                 const chipsPaid = Number(balance / unitMultiplier);
                 const requiredChips = Number(t.buyin || 0) || 0;
+
                 if (chipsPaid >= requiredChips && requiredChips > 0) {
                     paidPlayers.push({ doc: pDoc, chipsPaid });
+                    batch.set(pDoc.ref, { status: 'paid' }, { merge: true });
+                    batchCount++;
                 } else {
                     unpaidPlayers.push(pDoc);
                 }
             }
 
-            // If not enough paid players, remove unpaid players (delete player docs) and revert table
-            const minPlayers = Math.max(2, Number(t.minPlayers || 2));
-            if (paidPlayers.length >= minPlayers) {
-                // mark paid players as 'paid' and set table active
-                const batch = db.batch();
-                for (const p of paidPlayers) {
-                    batch.set(p.doc.ref, { status: 'paid' }, { merge: true });
-                }
-                batch.update(docSnap.ref, { status: 'active', startedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(), lastActivityAt: FieldValue.serverTimestamp() });
-                await batch.commit();
-                console.log(`Table ${tableId} promoted to active with ${paidPlayers.length} paid players.`);
-            } else {
-                // Remove unpaid players and revert to waiting or delete table if empty
-                const batch = db.batch();
-                for (const pDoc of unpaidPlayers) batch.delete(pDoc.ref);
-                // After deletions, check remaining players count
-                await batch.commit();
-                const remainSnap = await playersCol.get();
-                if (remainSnap.empty) {
-                    console.log(`No players paid for table ${tableId}; deleting table.`);
-                    await cascadeDeleteWaitingTable(tableId);
+            // Check if time window expired
+            if (now >= startingAtMs + windowSec * 1000) {
+                // Window expired: activate if we have enough players, otherwise revert/delete
+                const minPlayers = Math.max(2, Number(t.minPlayers || 2));
+                if (paidPlayers.length >= minPlayers) {
+                    batch.update(docSnap.ref, { status: 'active', startedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp(), lastActivityAt: FieldValue.serverTimestamp() });
+                    batchCount++;
+                    console.log(`Table ${tableId} promoted to active with ${paidPlayers.length} paid players.`);
                 } else {
-                    console.log(`Not enough players paid for table ${tableId}; reverting to waiting.`);
-                    await docSnap.ref.update({ status: 'waiting', updatedAt: FieldValue.serverTimestamp(), lastActivityAt: FieldValue.serverTimestamp() });
+                    // Revert logic: delete unpaid, then check remaining
+                    // We can't do deletion in the same batch easily if we also did updates, so we execute deletions immediately
+                    const delBatch = db.batch();
+                    unpaidPlayers.forEach(p => delBatch.delete(p.ref));
+                    await delBatch.commit();
+
+                    // Check remaining count (approximate based on paidPlayers)
+                    if (paidPlayers.length === 0) {
+                        console.log(`No players paid for table ${tableId}; deleting table.`);
+                        await cascadeDeleteWaitingTable(tableId);
+                    } else {
+                        console.log(`Not enough players paid for table ${tableId}; reverting to waiting.`);
+                        batch.update(docSnap.ref, { status: 'waiting', updatedAt: FieldValue.serverTimestamp(), lastActivityAt: FieldValue.serverTimestamp() });
+                        batchCount++;
+                    }
                 }
             }
         }
+        if (batchCount > 0) await batch.commit();
     } catch (e) {
         console.error('verifyStartingTables error', e);
     }
