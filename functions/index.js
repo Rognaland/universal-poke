@@ -4401,7 +4401,31 @@ async function settleEndOfHand(tableId, game) {
     console.log(`  - aiMatchConcluded: ${aiMatchConcluded}`);
     console.log(`  - privateAiShouldContinue: ${privateAiShouldContinue}`);
 
-    if (!aiMatchConcluded) {
+    // === SIT & GO (SNG) LOGIC: Check for Winner Takes All ===
+    const isSng = tableData && (tableData.type === 'sng') && !isAiTable;
+    let sngWinnerPid = null;
+
+    if (isSng) {
+        console.log(`[settleEndOfHand] Checking SNG win condition for table ${tableId}`);
+        // Count players with chips > 0
+        const activePids = [];
+        Object.entries(game.players || {}).forEach(([pid, pdata]) => {
+            if (!pdata) return;
+            const stack = Number(pdata.stack || 0);
+            if (Number.isFinite(stack) && stack > 0) {
+                activePids.push(pid);
+            }
+        });
+
+        console.log(`[settleEndOfHand] SNG Active Players: ${activePids.length} (${activePids.join(',')})`);
+
+        if (activePids.length === 1) {
+            sngWinnerPid = activePids[0];
+            console.log(`[settleEndOfHand] 🏆 SNG WINNER FOUND: ${sngWinnerPid}`);
+        }
+    }
+
+    if (!aiMatchConcluded && !sngWinnerPid) {
         if (isPrivateAi) {
             if (privateAiShouldContinue) {
                 // Match is NOT over - start new hand
@@ -4416,45 +4440,30 @@ async function settleEndOfHand(tableId, game) {
                 console.log(`[settleEndOfHand] Private AI table ${tableId} awaiting final resolution (humansWithChips=${humansWithChips.length}, botsWithChips=${botsWithChips.length}).`);
             }
         } else {
-            const seatedPlayersSnap = await db.collection(`tables/${tableId}/players`).where('status', '==', 'seated').get();
+            // Multi-player Cash or SNG (not ended yet)
+            const seatedPlayersSnap = await db.collection(`tables/${tableId}/players`).where('status', 'in', ['seated', 'playing']).get();
 
-            console.log(`[settleEndOfHand] Found ${seatedPlayersSnap.size} players with 'seated' status.`);
+            console.log(`[settleEndOfHand] Found ${seatedPlayersSnap.size} players with 'seated/playing' status.`);
 
             const eligiblePlayers = [];
-            const eligibleHumans = [];
-            const eligibleBots = [];
             seatedPlayersSnap.forEach((doc) => {
                 const data = doc.data() || {};
                 const stack = typeof data.stack === 'number' ? data.stack : Number(data.stack || 0);
                 if (!Number.isFinite(stack) || stack <= 0) return;
-
-                const isBot = data.bot === true || String(data.role || '').toLowerCase() === 'bot';
                 eligiblePlayers.push(doc.id);
-                if (isBot) {
-                    eligibleBots.push(doc.id);
-                } else {
-                    eligibleHumans.push(doc.id);
-                }
             });
 
-            console.log(`[settleEndOfHand] ${eligiblePlayers.length} seated players currently have chips (${eligibleHumans.length} humans, ${eligibleBots.length} bots).`);
+            console.log(`[settleEndOfHand] ${eligiblePlayers.length} seated players currently have chips.`);
 
             const localEligiblePlayers = [];
-            const localHumansWithChips = [];
-            const localBotsWithChips = [];
             Object.entries(game.players || {}).forEach(([pid, pdata]) => {
                 if (!pdata) return;
                 if (pdata.isLeaving) return;
                 const stack = Number(pdata.stack || 0);
                 if (!Number.isFinite(stack) || stack <= 0) return;
                 localEligiblePlayers.push(pid);
-                if (pdata.bot) {
-                    localBotsWithChips.push(pid);
-                } else if (pdata.address) {
-                    localHumansWithChips.push(pid);
-                }
             });
-            console.log(`[settleEndOfHand] Local snapshot players with chips: humans=${localHumansWithChips.length} bots=${localBotsWithChips.length}`);
+            console.log(`[settleEndOfHand] Local snapshot players with chips: ${localEligiblePlayers.length}`);
 
             const shouldStartNewHand = eligiblePlayers.length >= 2;
 
@@ -4474,16 +4483,154 @@ async function settleEndOfHand(tableId, game) {
                 }
             } else {
                 console.log(`[settleEndOfHand] NOT ENOUGH PLAYERS to start new hand on table ${tableId}`);
-                console.log(`[settleEndOfHand] - seatedPlayersSnap.size: ${seatedPlayersSnap.size}`);
-                console.log(`[settleEndOfHand] - eligiblePlayers.length: ${eligiblePlayers.length}`);
-                console.log(`[settleEndOfHand] - localEligiblePlayers.length: ${localEligiblePlayers.length}`);
-                console.log(`[settleEndOfHand] - isPrivateAi: ${isPrivateAi}`);
-                console.log(`[settleEndOfHand] - shouldStartNewHand: ${shouldStartNewHand}`);
-                if (seatedPlayersSnap.size >= 2 && eligiblePlayers.length < 2) {
-                    console.log(`[settleEndOfHand] Seated count met but only ${eligiblePlayers.length} player(s) have chips. Awaiting buy-ins or top-ups.`);
+                if (isSng) {
+                    // Should theoretically be caught by winner check, but if 0 players have chips?
+                    console.warn('[settleEndOfHand] SNG table has < 2 active players but no winner found? Possible abrupt end.');
                 }
-                // Potential future hook: handle end-of-table or tournament cleanup when players < 2
             }
+        }
+    } else if (sngWinnerPid) {
+        // --- SNG WINNER PAYOUT LOGIC ---
+        try {
+            const winnerData = game.players[sngWinnerPid];
+            const winnerAddress = winnerData?.address;
+            if (!winnerAddress) throw new Error(`Winner ${sngWinnerPid} has no address`);
+
+            console.log(`[settleEndOfHand] Processing SNG Payout for ${winnerAddress}`);
+
+            // 1. Calculate Total Prize Pool
+            // Count all players who ever joined/paid?
+            // Better: use `players` subcollection count or `tableData.buyin * tableData.players` (if tracked)
+            // Safest: Count all player docs in subcollection (since SNG locks entry)
+            const allPlayersSnap = await db.collection(`tables/${tableId}/players`).get();
+            // Filter out anyone who hasn't paid or played (e.g. just seated but not paid)
+            // In SNG, players pay to get chips. Stack > 0 implies payment.
+            // Actually, we should look at the total buy-in amount collected.
+            // We can estimate by: buyin * count(paid players)
+            // Or assume the winner takes "everything in the vault".
+
+            // Let's query the vault balance for this table to be absolutely sure of the pot size!
+            const vaultAbi = loadVaultAbi();
+            if (!vaultAbi || !authWallet) throw new Error('Vault/Wallet not ready');
+            const vault = new ethers.Contract(CFG.gameVault, vaultAbi, authWallet);
+            const onchainTableId = deriveOnchainTableId(tableId);
+            const token = game.tokenAddress || ethers.ZeroAddress;
+
+            // For Winner Takes All, we want to pay out the SUM of all player balances currently in the vault for this table.
+            // However, the vault tracks per-user balances.
+            // We need to:
+            // 1. Move all losing players' balances to the winner (or to house, then payout).
+            // 2. Or just authorize the winner to withdraw specific amounts.
+            // The `moveBalance` function exists.
+
+            // Strategy:
+            // Iterate all *other* players who were in the tournament.
+            // Check their vault balance.
+            // Move it to winner.
+            // Then authorize winner to withdraw total.
+
+            console.log(`[settleEndOfHand] SNG: consolidating funds to winner...`);
+            let totalPotUnits = 0n;
+
+            // Optimized parallel processing
+            const consolidationPromises = allPlayersSnap.docs.map(async (doc) => {
+                const pdata = doc.data();
+                const addr = pdata.address;
+                if (!addr || addr.toLowerCase() === winnerAddress.toLowerCase()) return;
+
+                try {
+                    let bal = 0n;
+                    // Handle overloaded
+                    if (typeof vault['balanceOf(uint256,address,address)'] === 'function') {
+                        bal = await vault['balanceOf(uint256,address,address)'](onchainTableId, addr, token);
+                    } else {
+                        bal = await vault.balanceOf(onchainTableId, addr, token);
+                    }
+
+                    if (bal > 0n) {
+                        console.log(`[settleEndOfHand] Moving ${bal} from ${addr} to ${winnerAddress}`);
+                        // Move to winner
+                        const tx = await vault.moveBalance(onchainTableId, token, addr, winnerAddress, bal);
+                        await tx.wait();
+                        // Note: totalPotUnits accumulation here isn't thread-safe if we rely on it for logic,
+                        // but we re-read the winner's balance at the end anyway.
+                    }
+                } catch (e) {
+                    console.warn(`SNG consolidation fail for ${addr}`, e);
+                }
+            });
+
+            await Promise.all(consolidationPromises);
+
+            // Now get winner's own balance
+            let winnerBal = 0n;
+            try {
+                if (typeof vault['balanceOf(uint256,address,address)'] === 'function') {
+                    winnerBal = await vault['balanceOf(uint256,address,address)'](onchainTableId, winnerAddress, token);
+                } else {
+                    winnerBal = await vault.balanceOf(onchainTableId, winnerAddress, token);
+                }
+            } catch (e) { console.warn('SNG winner balance check fail', e); }
+
+            // Total pot is effectively in winner's balance now (winnerBal includes moved funds)
+            // Wait, moveBalance updates state. So re-reading winnerBal should show TOTAL.
+            // Let's re-read just to be safe.
+             if (typeof vault['balanceOf(uint256,address,address)'] === 'function') {
+                winnerBal = await vault['balanceOf(uint256,address,address)'](onchainTableId, winnerAddress, token);
+            } else {
+                winnerBal = await vault.balanceOf(onchainTableId, winnerAddress, token);
+            }
+
+            console.log(`[settleEndOfHand] SNG Total Pot (Winner Bal): ${winnerBal}`);
+
+            if (winnerBal > 0n) {
+                // Authorize withdrawal
+                await pvePayoutStakeAndReward({
+                    tableId,
+                    player: winnerAddress,
+                    tokenAddress: token,
+                    stakeUnits: winnerBal, // Treat all as stake/winnings bundle
+                    rewardUnits: 0n
+                });
+
+                // Flush/Withdraw
+                // Note: The player will likely use the "Claim" button, but we can try auto-withdraw
+                // via `withdrawFullVaultBalance` if we want.
+                // The requirement says: "ko je konec igre zmagovalec lahko vse dvigne iz gamevault tako kot je to pri play vs pc ko lahko dvigneš samo da tu dvigne vsa sredstva!"
+                // "Winner can withdraw all funds".
+                // Since pvePayoutStakeAndReward authorizes it, the "Claim" button in frontend works.
+                // But we can also try pushing it to wallet if possible (like Play vs PC win flush).
+
+                // Note: pvePayoutStakeAndReward *already* calls authorizePayout.
+                // We can try `withdrawFullVaultBalance` for convenience.
+                try {
+                    await withdrawFullVaultBalance({
+                        tableId,
+                        player: winnerAddress,
+                        tokenAddress: token,
+                        reason: 'sng_win'
+                    });
+                } catch (wErr) {
+                    console.warn('Auto-withdraw SNG failed, player must claim manually:', wErr);
+                }
+            }
+
+            // Mark table finished
+            await tableRef.set({
+                status: 'finished',
+                endedAt: FieldValue.serverTimestamp(),
+                sngResult: {
+                    winnerPid: sngWinnerPid,
+                    winnerAddress,
+                    totalPrize: winnerBal.toString(),
+                    processedAt: FieldValue.serverTimestamp()
+                }
+            }, { merge: true });
+
+            console.log(`[settleEndOfHand] SNG Table ${tableId} FINISHED. Winner: ${winnerAddress}`);
+
+        } catch (err) {
+            console.error(`[settleEndOfHand] SNG Payout Error:`, err);
         }
     } else {
         console.log(`[settleEndOfHand] AI match concluded on table ${tableId}; skipping new hand start.`);

@@ -1,0 +1,403 @@
+/* frontend/src/ultra-modern.css */
+
+/* --- Ultra Modern Design Overhaul 2024 --- */
+
+:root {
+    --um-bg: #030712; /* Very dark blue/gray */
+    --um-surface: rgba(17, 24, 39, 0.65); /* Glassy surface */
+    --um-surface-strong: rgba(17, 24, 39, 0.9);
+    --um-border: rgba(255, 255, 255, 0.08);
+    --um-border-hover: rgba(255, 255, 255, 0.15);
+    --um-border-active: rgba(96, 165, 250, 0.4);
+
+    --um-accent-primary: #3b82f6; /* Blue-500 */
+    --um-accent-secondary: #8b5cf6; /* Violet-500 */
+    --um-accent-success: #10b981; /* Emerald-500 */
+    --um-accent-gold: #f59e0b; /* Amber-500 */
+
+    --um-text-main: #f9fafb;
+    --um-text-muted: #9ca3af;
+
+    --um-shadow-glow: 0 0 20px rgba(59, 130, 246, 0.15);
+    --um-radius: 24px;
+    --um-radius-sm: 12px;
+
+    --um-font: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* GLOBAL RESET & TYPOGRAPHY */
+body {
+    /* Rich, deep animated gradient background */
+    background:
+        radial-gradient(circle at 15% 50%, rgba(59, 130, 246, 0.12), transparent 40%),
+        radial-gradient(circle at 85% 30%, rgba(139, 92, 246, 0.12), transparent 40%),
+        #020611 !important; /* Fallback */
+    font-family: var(--um-font) !important;
+    color: var(--um-text-main) !important;
+}
+
+/* LAYOUT ADJUSTMENTS */
+/* Center the menu interface */
+.poker-module.mode-menu .poker-stage {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: flex-start !important; /* Start alignment for scrolling if needed */
+    padding-top: 40px !important;
+    min-height: 90vh;
+}
+
+.poker-module.mode-menu .panel-stack {
+    width: 100% !important;
+    max-width: 520px !important; /* Increased width for better breathing room */
+    margin: 0 auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 24px !important;
+}
+
+/* UI PANELS (Auth, Menu, Setup, Join) - Glassmorphism */
+.panel,
+.auth-card,
+.menu-wrapper,
+.setup-panel {
+    background: var(--um-surface) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border: 1px solid var(--um-border) !important;
+    border-radius: var(--um-radius) !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
+    padding: 32px !important;
+}
+
+/* AUTH PAGE SPECIFICS */
+.auth {
+    /* Remove old container styles to let auth-card take over */
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin-top: 40px !important;
+}
+
+.auth-card {
+    display: flex !important;
+    flex-direction: column;
+    gap: 32px;
+}
+
+.hero-title {
+    font-size: 3.5rem !important;
+    font-weight: 800 !important;
+    background: linear-gradient(135deg, #60a5fa 0%, #c084fc 100%) !important;
+    -webkit-background-clip: text !important;
+    background-clip: text !important;
+    color: transparent !important;
+    text-align: center;
+    letter-spacing: -0.03em !important;
+    margin-bottom: 0.5rem !important;
+    line-height: 1.1 !important;
+}
+
+.auth-lede {
+    text-align: center;
+    font-size: 1.15rem !important;
+    color: var(--um-text-muted) !important;
+    font-weight: 400 !important;
+    max-width: 80%;
+    margin: 0 auto !important;
+}
+
+.auth-lede::after {
+    content: none !important; /* Remove old tagline */
+}
+
+.auth-benefits {
+    background: rgba(255, 255, 255, 0.02) !important;
+    padding: 24px !important;
+    border-radius: var(--um-radius-sm);
+    border: 1px solid var(--um-border);
+    margin: 8px 0 24px 0 !important;
+    gap: 12px !important;
+}
+
+.auth-benefits li {
+    font-size: 0.95rem !important;
+    color: #e5e7eb !important;
+    font-weight: 500 !important;
+}
+
+.auth-benefits li::before {
+    color: var(--um-accent-success) !important;
+    font-size: 1.1em !important;
+}
+
+/* ACCOUNT PICKER */
+.account-list {
+    max-width: 100% !important;
+}
+
+.account-card {
+    background: rgba(255, 255, 255, 0.03) !important;
+    border: 1px solid var(--um-border) !important;
+    border-radius: var(--um-radius-sm) !important;
+    padding: 16px !important;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    margin-bottom: 8px;
+}
+
+.account-card:hover, .account-card.selected {
+    background: rgba(59, 130, 246, 0.12) !important;
+    border-color: var(--um-accent-primary) !important;
+    transform: translateX(4px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+}
+
+.account-avatar {
+    width: 48px !important;
+    height: 48px !important;
+    border-radius: 14px !important; /* Soft square */
+    background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+    font-size: 1.2rem !important;
+    border: none !important;
+    box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3) !important;
+}
+
+/* MENU REDESIGN */
+.menu-brand-header {
+    text-align: center;
+    justify-content: center;
+    flex-direction: column;
+    margin-bottom: 32px !important;
+}
+
+.menu-brand-title h1 {
+    font-size: 2.2rem !important;
+    background: linear-gradient(to right, #fff, #cbd5e1);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    margin-bottom: 8px !important;
+}
+
+.menu-brand-subtitle {
+    font-size: 0.95rem !important;
+    color: var(--um-text-muted) !important;
+    opacity: 0.8;
+}
+
+.menu-social-links {
+    justify-content: center !important;
+    margin-top: 16px !important;
+}
+
+.menu-token-card {
+    background: linear-gradient(180deg, rgba(30, 41, 59, 0.4), rgba(15, 23, 42, 0.6)) !important;
+    border: 1px solid rgba(59, 130, 246, 0.15) !important;
+    margin-bottom: 32px !important;
+    box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.3) !important;
+}
+
+.menu-grid {
+    grid-template-columns: 1fr 1fr !important; /* Force 2 columns */
+    gap: 20px !important;
+    max-width: 100% !important;
+}
+
+@media (max-width: 640px) {
+    .menu-grid {
+        grid-template-columns: 1fr !important; /* 1 col on mobile */
+    }
+    .hero-title {
+        font-size: 2.5rem !important;
+    }
+    .poker-module.mode-menu .panel-stack {
+        padding: 0 16px !important;
+    }
+}
+
+.menu-btn {
+    background: rgba(255, 255, 255, 0.03) !important;
+    border: 1px solid var(--um-border) !important;
+    border-radius: 20px !important;
+    padding: 24px !important;
+    align-items: flex-start !important; /* Left align content */
+    text-align: left !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    min-height: 160px !important;
+}
+
+.menu-btn::before {
+    /* Subtle gradient overlay on hover */
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), transparent) !important;
+}
+
+.menu-btn:hover {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border-color: var(--um-accent-primary) !important;
+    transform: translateY(-4px) !important;
+    box-shadow: var(--um-shadow-glow) !important;
+}
+
+.menu-icon {
+    background: rgba(59, 130, 246, 0.1) !important;
+    color: #60a5fa !important;
+    width: 56px !important;
+    height: 56px !important;
+    border-radius: 16px !important;
+    font-size: 1.75rem !important;
+    border: none !important;
+    box-shadow: none !important;
+    margin-bottom: 16px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+.menu-text {
+    align-items: flex-start !important;
+    gap: 6px !important;
+}
+
+.menu-title {
+    font-size: 1.2rem !important;
+    font-weight: 700 !important;
+}
+
+.menu-subtitle {
+    font-size: 0.9rem !important;
+    opacity: 0.7 !important;
+    line-height: 1.5 !important;
+}
+
+/* FORM ELEMENTS */
+input, select {
+    background: rgba(0, 0, 0, 0.25) !important;
+    border: 1px solid var(--um-border) !important;
+    border-radius: 12px !important;
+    padding: 16px 20px !important; /* Larger touch targets */
+    font-size: 1rem !important;
+    color: white !important;
+    transition: all 0.2s !important;
+    width: 100% !important;
+}
+
+input:focus, select:focus {
+    border-color: var(--um-accent-primary) !important;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15) !important;
+    outline: none !important;
+    background: rgba(0, 0, 0, 0.35) !important;
+}
+
+label {
+    color: var(--um-text-muted) !important;
+    font-size: 0.85rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+    font-weight: 600 !important;
+    margin-bottom: 8px !important;
+    display: block !important;
+}
+
+.hint {
+    font-size: 0.85rem !important;
+    color: rgba(156, 163, 175, 0.8) !important;
+    margin-top: 6px !important;
+}
+
+/* BUTTONS */
+.control-btn {
+    border-radius: 100px !important; /* Pill shape */
+    font-weight: 600 !important;
+    padding: 14px 28px !important;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    font-size: 1rem !important;
+    text-transform: none !important; /* Remove uppercase from old style */
+    letter-spacing: 0.01em !important;
+}
+
+.control-btn.primary,
+#account-continue,
+#btn-join-table,
+#btn-create-table,
+#btn-start-game,
+#btn-start-ai,
+#btn-deposit,
+#btn-chat-send {
+    background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+    border: none !important;
+    color: white !important;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3) !important;
+}
+
+.control-btn.primary:hover,
+#account-continue:hover,
+#btn-join-table:hover,
+#btn-create-table:hover,
+#btn-start-game:hover,
+#btn-start-ai:hover,
+#btn-deposit:hover,
+#btn-chat-send:hover {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 8px 20px rgba(37, 99, 235, 0.4) !important;
+}
+
+.control-btn.secondary {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid var(--um-border) !important;
+    color: var(--um-text-muted) !important;
+}
+
+.control-btn.secondary:hover {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border-color: var(--um-border-hover) !important;
+    color: var(--um-text-main) !important;
+    transform: translateY(-1px) !important;
+}
+
+/* PANEL HEADERS */
+.panel-title {
+    font-size: 1.5rem !important;
+    font-weight: 700 !important;
+    color: #f8fafc !important;
+    letter-spacing: -0.02em !important;
+    margin-bottom: 8px !important;
+    text-transform: none !important;
+}
+
+.panel-header {
+    border-bottom: 1px solid var(--um-border) !important;
+    padding-bottom: 20px !important;
+    margin-bottom: 24px !important;
+}
+
+.panel-back-btn {
+    border-radius: 8px !important;
+    padding: 8px 16px !important;
+    font-size: 0.9rem !important;
+}
+
+/* GAME UI PRESERVATION - Ensure these don't get messed up */
+.table-area,
+.table-area *,
+.player-controls,
+.player-controls * {
+    /* We do not apply !important overrides here, relying on specific selectors above */
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+    width: 10px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 255, 255, 0.25);
+}

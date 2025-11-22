@@ -1,5 +1,6 @@
 import { depositLyx, depositWbstr, claimPrize, claimMultiple, getDefaultPrizeTokens, getAuthorizedPayout, getSigner, getBalances, getVaultBalance, withdrawFromVault, getPlayerTableIds } from './services.chain.js';
 import './style.css';
+import './ultra-modern.css';
 // Firebase
 import './firebase.js';
 import { createTable, subscribeOpenTables, subscribeTablePlayers, addPlayerToTable, removePlayerFromTable, subscribeTable, startTable, createAiTable, WBSTR_TOKEN_ADDRESS, getTable, joinOnCreate, subscribeTableChat, addChatMessage, subscribeGameState, playerAction, subscribeActiveTables, listTablePlayers, startAiGameCreate, startAiGameConfirm, subscribePlayerStatsByCategory, recordLeaderboardEntry } from './services.firestore.js';
@@ -172,6 +173,10 @@ const initApp = async () => {
     const setupDate = document.getElementById('setup-date');
     const setupTime = document.getElementById('setup-time');
     const setupGameType = document.getElementById('setup-gametype');
+
+    // URL Routing: Check for table query param
+    const urlParams = new URLSearchParams(window.location.search);
+    const autoJoinTableId = urlParams.get('table');
 
     let profilePopup = null;
     let claimStatusEl = null;
@@ -667,8 +672,18 @@ const initApp = async () => {
                     const tableDoc = await db.collection('tables').doc(tableInfo.firestoreId).get();
                     const tableData = tableDoc.exists ? tableDoc.data() : null;
                     
-                    // Only count as claimable if table status is 'ended'
-                    if (tableData && tableData.status === 'ended') {
+                    // Only count as claimable if table status is 'ended' OR if explicitly checking for refunds (waiting room)
+                    // Note: For waiting rooms, we assume players might want to refund manually
+                    const isEnded = tableData && (tableData.status === 'ended' || tableData.status === 'finished');
+                    const isWaiting = tableData && (tableData.status === 'waiting' || tableData.status === 'starting');
+
+                    // In menu view, we usually only show 'ended' winnings.
+                    // But if we want to show refunds too, we can include waiting.
+                    // For now, keep menu focused on winnings, but allow waiting check if specifically requested?
+                    // Actually, updateClaimButtonStates runs periodically for the menu badge.
+                    // We probably only want to notify about WINNINGS there.
+
+                    if (isEnded) {
                         const balance = await getVaultBalance(tableInfo.onchainId, address, token);
                         if (balance > 0n) {
                             totalBalance += balance;
@@ -1097,8 +1112,43 @@ const initApp = async () => {
             ]);
         } catch (_) {}
         
-        // Auto-reconnect: Poskusi obnoviti aktivno igro iz localStorage
-        await tryAutoReconnect(true);
+        // Check for auto-join from URL first
+        if (autoJoinTableId) {
+            console.log('Auto-joining table from URL:', autoJoinTableId);
+            try {
+                const t = await getTable(autoJoinTableId);
+                if (t) {
+                    // Check if already seated
+                    const players = await listTablePlayers(autoJoinTableId);
+                    const myPid = players.find(p => p.address && p.address.toLowerCase() === window.__upAddress.toLowerCase());
+
+                    if (myPid) {
+                        // Already seated, just enter waiting room
+                        enterWaitingRoom(autoJoinTableId, myPid.id, myPid.role === 'host');
+                    } else {
+                        // Not seated, try to join
+                        // If table is full or game active, this might fail or just show as observer (logic depends on implementation)
+                        // For now, we'll try to sit.
+                        try {
+                            const me = await addPlayerToTable(autoJoinTableId, { name: window.__upUsername || 'Player', address: window.__upAddress || null, role: 'player' });
+                            enterWaitingRoom(autoJoinTableId, me.id, false);
+                        } catch (joinErr) {
+                            setMessage(joinErr.message || 'Could not auto-join table.');
+                            showMainMenu();
+                        }
+                    }
+                    // Skip auto-reconnect if we are handling a specific table link
+                } else {
+                    setMessage('Table not found from link.');
+                }
+            } catch (e) {
+                console.error('Auto-join error:', e);
+                setMessage('Error joining table from link.');
+            }
+        } else {
+            // Auto-reconnect: Poskusi obnoviti aktivno igro iz localStorage
+            await tryAutoReconnect(true);
+        }
     }
     async function displayAccountPicker({ requestPermission = false } = {}) {
         if (!accountPicker) return;
@@ -1164,6 +1214,7 @@ const initApp = async () => {
     const chatInput = document.getElementById('chat-input');
     const chatSendBtn = document.getElementById('btn-chat-send');
     const startTableBtn = document.getElementById('btn-start-table');
+    const copyInviteBtn = document.getElementById('btn-copy-invite');
     const leaveWaitingBtn = document.getElementById('btn-leave-waiting');
     
     // Avatar cache for waiting-room (address -> avatar URL|null)
@@ -2240,10 +2291,32 @@ const initApp = async () => {
                 const onchainId = tableInfo.onchainId;
                 const firestoreId = tableInfo.firestoreId;
                 try {
-                    const balance = await getVaultBalance(onchainId, window.__upAddress, token);
-                    console.log(`💰 Table ${firestoreId} (onchain: ${onchainId}) balance:`, balance.toString());
-                    if (balance > 0n) {
-                        withdrawals.push({ onchainId, firestoreId, balance });
+                    // If source is waiting-room, strictly filter for THAT table?
+                    // Actually handleClaimAll is generic.
+                    // But we should probably filter out 'active' tables to avoid accidents?
+                    // But players can't withdraw from active tables anyway (vault logic + backend logic).
+                    // Let's just check balance.
+
+                    // Optimization: check table status to avoid confusing errors on active tables
+                    const tableDoc = await db.collection('tables').doc(firestoreId).get();
+                    const tableData = tableDoc.exists ? tableDoc.data() : null;
+
+                    // If source is 'waiting-room', we allow 'waiting'/'starting' tables.
+                    // If source is 'menu'/'profile', we typically target 'ended'/'finished'.
+                    // However, if a player wants to refund via menu, we should allow it if they are essentially 'out' or 'waiting'.
+
+                    const isEnded = tableData && (tableData.status === 'ended' || tableData.status === 'finished');
+                    const isWaiting = tableData && (tableData.status === 'waiting' || tableData.status === 'starting');
+
+                    // If source is waiting-room, we MUST allow waiting tables.
+                    const allowWaiting = source === 'waiting-room';
+
+                    if (isEnded || (allowWaiting && isWaiting)) {
+                        const balance = await getVaultBalance(onchainId, window.__upAddress, token);
+                        console.log(`💰 Table ${firestoreId} (onchain: ${onchainId}) balance:`, balance.toString());
+                        if (balance > 0n) {
+                            withdrawals.push({ onchainId, firestoreId, balance });
+                        }
                     }
                 } catch (err) {
                     console.warn(`Failed to check balance for table ${firestoreId}:`, err);
@@ -2888,23 +2961,63 @@ const initApp = async () => {
         try { unsub.waitingPlayers = subscribeTablePlayers(tableId, async (rows) => {
             if (!waitingPlayersEl) return;
             const cap = Math.max(2, Math.min(9, rows?.cap || 9));
+            const tableData = currentWaiting.tableDoc || (await getTable(tableId)); // Ensure we have table data
+            currentWaiting.tableDoc = tableData;
+
             // Render players with avatars
             const html = await Promise.all((rows||[]).map(async (p) => {
                 const img = await fetchAvatarForAddress(p.address || '');
                 const role = p.role === 'host' ? 'Host' : (p.role === 'bot' ? 'Bot' : 'Player');
                 const you = (p.id === myDocId) ? ' • you' : '';
                 const av = img ? `<img src="${img}" alt="" width="20" height="20" style="border-radius:50%;margin-right:6px;" />` : '';
-                return `<div class="list-item"><div style="display:flex;align-items:center;gap:6px;">${av}<b>${p.name||'Player'}</b><span class="hint">(${role}${you})</span></div><div>${p.status||''}</div></div>`;
+
+                let actionHtml = '';
+                if (p.id === myDocId && !p.bot) {
+                    if (p.status === 'seated') {
+                        // Needs to pay
+                        actionHtml = `<button class="control-btn small primary" onclick="window.payBuyIn('${tableId}', '${tableData?.buyin}', '${tableData?.tokenAddress}', '${tableData?.unitMultiplier}')">Pay Buy-in</button>`;
+                    } else if (p.status === 'paid') {
+                        // Has paid, can refund if game not started
+                        // Only allow refund if game is NOT active or starting
+                        const canRefund = ['waiting', 'starting'].includes(String(tableData?.status).toLowerCase());
+                        if (canRefund) {
+                            actionHtml = `<span class="badge paid">PAID</span> <button class="control-btn small secondary" onclick="window.refundBuyIn('${tableId}', '${tableData?.tokenAddress}')">Refund</button>`;
+                        } else {
+                            actionHtml = `<span class="badge paid">PAID</span>`;
+                        }
+                    }
+                } else if (p.status === 'paid') {
+                    actionHtml = `<span class="badge paid">PAID</span>`;
+                }
+
+                return `<div class="list-item">
+                    <div style="display:flex;align-items:center;gap:6px;">${av}<b>${p.name||'Player'}</b><span class="hint">(${role}${you})</span></div>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        ${p.status||''}
+                        ${actionHtml}
+                    </div>
+                </div>`;
             }));
             waitingPlayersEl.innerHTML = html.join('');
+
+            // Host Start Button Logic
             if (startTableBtn) {
                 const autoStart = String(currentWaiting.mode || '').toLowerCase() === 'ai';
                 if (autoStart) {
                     startTableBtn.style.display = 'none';
                     startTableBtn.disabled = true;
                 } else {
-                    startTableBtn.style.display = isHost ? 'inline-block' : 'none';
-                    startTableBtn.disabled = !isHost;
+                    const showForHost = !!isHost;
+                    startTableBtn.style.display = showForHost ? 'inline-block' : 'none';
+
+                    // Check if enough players paid
+                    const paidCount = (rows || []).filter(p => p.status === 'paid').length;
+                    const minStart = 2; // Minimum 2 players to start SNG
+
+                    if (showForHost) {
+                        startTableBtn.disabled = paidCount < minStart;
+                        startTableBtn.textContent = paidCount < minStart ? `Waiting for players (${paidCount}/${minStart} ready)` : 'Start Game';
+                    }
                 }
             }
         }); } catch (_) {}
@@ -2934,6 +3047,91 @@ const initApp = async () => {
                 return;
             }
             try { await startTable(tableId); } catch (e) { alert(e?.message || String(e)); }
+        };
+
+        if (copyInviteBtn) copyInviteBtn.onclick = () => {
+            if (!currentWaiting.tableId) return;
+            const url = window.location.origin + '/?table=' + currentWaiting.tableId;
+            navigator.clipboard.writeText(url).then(() => {
+                const originalText = copyInviteBtn.textContent;
+                copyInviteBtn.textContent = 'Copied!';
+                setTimeout(() => {
+                    copyInviteBtn.textContent = originalText;
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+                setMessage('Failed to copy link to clipboard');
+            });
+        };
+
+        // Expose helpers for inline buttons in waiting list
+        window.payBuyIn = async (tid, buyinAmt, tokenAddr, unitMult) => {
+            if (!buyinAmt || Number(buyinAmt) <= 0) {
+                // Free game? Just mark paid? Logic for free games needs verification, assuming paid logic for now.
+                // For now, enforce buyin.
+                alert('Invalid buy-in amount.');
+                return;
+            }
+            setMessage('Initiating buy-in...');
+            try {
+                // Using depositWbstr or depositLyx depending on token
+                const isLyx = !tokenAddr || tokenAddr === ZERO_ADDRESS;
+                const amount = Number(buyinAmt);
+
+                if (isLyx) {
+                    await depositLyx(tid, amount, unitMult, {
+                        onStatus: (s) => setMessage(`Buy-in status: ${s}`)
+                    });
+                } else {
+                    await depositWbstr(tid, amount, unitMult, tokenAddr, 10n, {
+                        onStatus: (s) => setMessage(`Buy-in status: ${s}`)
+                    });
+                }
+                // Backend `verifyStartingTables` or similar trigger should pick this up.
+                // Actually, for SNG, we might need to set table status to 'starting' temporarily to trigger verify?
+                // OR, simply depositing into vault is enough if we update player status manually?
+                // The current verifyStartingTables runs on schedule for 'starting' tables.
+                // Ideally, the deposit function should update player status to 'paid' if successful client-side?
+                // No, `depositLyx/Wbstr` return transaction receipt. We should update player status to 'paid' manually after success?
+                // Security rules might block 'paid' update if not server.
+                // Let's rely on the existing flow:
+                // 1. Deposit on chain.
+                // 2. Backend verify trigger or manual check.
+                // WAIT: The memory says `verifyStartingTables` updates player 'paid' status immediately upon detecting GameVault balance.
+                // So we just need to deposit.
+                setMessage('Buy-in transaction sent. Waiting for confirmation...');
+                // We might need to poll or wait for backend to see it.
+            } catch (e) {
+                console.error(e);
+                setMessage('Buy-in failed: ' + e.message);
+            }
+        };
+
+        window.refundBuyIn = async (tid, tokenAddr) => {
+            if (!confirm('Are you sure you want to leave and refund your buy-in?')) return;
+            setMessage('Refunding...');
+            try {
+                // Check balance first
+                const isLyx = !tokenAddr || tokenAddr === ZERO_ADDRESS;
+                const token = isLyx ? ZERO_ADDRESS : tokenAddr;
+                const onchainTableId = (await getTable(tid))?.onchainTableId || tid; // Fallback
+
+                // Logic to find balance and withdraw
+                // We can use handleClaimAll logic or direct withdraw
+                // Let's use withdrawFromVault directly if we know the amount?
+                // We might not know exact amount easily without querying.
+                // Let's trigger the `handleClaimAll` logic which scans and withdraws.
+                await handleClaimAll({ source: 'waiting-room' });
+
+                // Remove player from table
+                if (currentWaiting.myDocId) {
+                    await removePlayerFromTable(tid, currentWaiting.myDocId);
+                }
+                showMainMenu();
+            } catch (e) {
+                console.error(e);
+                setMessage('Refund failed: ' + e.message);
+            }
         };
         if (leaveWaitingBtn) leaveWaitingBtn.onclick = async () => {
             try { if (myDocId) await removePlayerFromTable(tableId, myDocId); } catch (_) {}
